@@ -12,6 +12,41 @@ const recommendedPool = [
 
 let currentFeatured = [];
 
+// ===================== GUIDE DATA =====================
+const guideData = {
+  scan: {
+    title: "AI 스캔 100% 활용하기",
+    body: `
+      <h3>1. 밝은 조명 아래서 촬영하세요</h3>
+      <p>카메라가 카드의 미세한 디테일을 읽을 수 있도록 충분한 빛이 필요합니다. 자연광이 가장 좋으며, 실내라면 그림자가 지지 않도록 주의해 주세요.</p>
+      <h3>2. 카드 수평을 맞추세요</h3>
+      <p>카메라 렌즈와 카드가 평행이 되도록 들어주면 왜곡 없이 더 정확하게 인식됩니다. 특히 홀로그램 카드는 각도에 따라 인식이 달라질 수 있으니 주의하세요.</p>
+      <h3>3. 배경을 단순하게 하세요</h3>
+      <p>복잡한 무늬가 있는 배경보다는 단색의 테이블 위에서 촬영하는 것이 좋습니다. AI가 카드의 경계선을 더 명확하게 파악할 수 있습니다.</p>
+    `
+  },
+  storage: {
+    title: "소중한 카드 보관법",
+    body: `
+      <h3>1. 필수 아이템: 슬리브(Sleeve)</h3>
+      <p>모든 카드의 기본은 슬리브입니다. '퍼펙트 핏' 슬리브로 1차 보호를 한 뒤, 겉슬리브를 씌우는 이중 슬리브 방식을 추천합니다.</p>
+      <h3>2. 강력한 보호: 탑로더(Toploader)</h3>
+      <p>희귀도가 높은 카드는 단단한 탑로더에 보관하세요. 휘어짐과 긁힘으로부터 카드를 철저하게 보호할 수 있습니다.</p>
+      <h3>3. 대량 보관: 바인더(Binder)</h3>
+      <p>컬렉션을 한눈에 감상하고 싶다면 전용 바인더를 사용하세요. 다만, 바인더를 세워 보관할 경우 아래쪽 카드가 눌릴 수 있으니 주의가 필요합니다.</p>
+    `
+  }
+};
+
+function openGuide(key) {
+  const guide = guideData[key];
+  if(!guide) return;
+  
+  document.getElementById('guide-title').textContent = guide.title;
+  document.getElementById('guide-body').innerHTML = guide.body;
+  goScreen('guide');
+}
+
 // ===================== APP STATE =====================
 let scanIdx = 0;
 let previousScreen = 'home';
@@ -120,7 +155,8 @@ function goScreen(name) {
   if(nb) nb.classList.add('active');
 
   const nav = document.getElementById('nav');
-  nav.style.display = (name === 'detail' || name === 'featured') ? 'none' : 'flex';
+  const noNavScreens = ['detail', 'featured', 'guide', 'about', 'privacy'];
+  nav.style.display = noNavScreens.includes(name) ? 'none' : 'flex';
 
   if (name === 'scan') {
     resetScan();
@@ -137,7 +173,7 @@ function goScreen(name) {
   if (name === 'featured') renderFullFeaturedGrid();
 
   updateStats();
-  previousScreen = (name !== 'detail' && name !== 'featured') ? name : previousScreen;
+  previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
 }
 
 function updateStats() {
