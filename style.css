@@ -680,9 +680,42 @@ html, body {
 .guide-content li, .legal-content li { font-size: 14px; color: var(--text2); margin-bottom: 8px; }
 
 /* ===================== MODAL OVERLAY ===================== */
-#overlay {
-  position:absolute; inset:0; background:rgba(0,0,0,0.7);
-  z-index:400; opacity:0; pointer-events:none; transition:opacity 0.3s;
-  backdrop-filter:blur(4px);
+.modal-overlay {
+  position: fixed; inset: 0; 
+  background: rgba(0,0,0,0.85);
+  z-index: 2000; display: none; 
+  align-items: center; justify-content: center; 
+  backdrop-filter: blur(10px); padding: 20px;
 }
-#overlay.show { opacity:1; pointer-events:all; }
+
+.modal-content {
+  background: var(--surface); width: 100%; max-width: 360px; 
+  border-radius: 28px; padding: 28px; 
+  border: 1px solid var(--border2); position: relative;
+}
+
+.avatar-option {
+  cursor: pointer; font-size: 24px; padding: 8px; 
+  border-radius: 12px; text-align: center; 
+  transition: all 0.2s; border: 1px solid transparent;
+}
+.avatar-option:active { transform: scale(0.9); }
+
+.edit-profile-btn {
+  background: transparent;
+  font-size: 12px; color: var(--gold); 
+  border: 1px solid var(--gold); 
+  padding: 6px 16px; border-radius: 20px; 
+  cursor: pointer; font-weight: 600;
+  transition: all 0.2s;
+}
+.edit-profile-btn:active { background: var(--gold-dim); transform: scale(0.95); }
+
+.logout-link-btn {
+  background: transparent;
+  font-size: 12px; color: var(--text3); 
+  border: 1px solid var(--border); 
+  padding: 6px 16px; border-radius: 20px; 
+  cursor: pointer; font-weight: 600;
+}
+.logout-link-btn:active { background: var(--surface2); transform: scale(0.95); }

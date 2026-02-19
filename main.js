@@ -64,11 +64,151 @@ let capturedImageData = null;
 let currentAiResult = null;
 let scanning = false;
 
-// User Collection State
-let myCollection = JSON.parse(localStorage.getItem('myCollection')) || [];
-
-// User Auth State
+// User Collection & Auth
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+let myCollection = [];
+
+const defaultAvatars = ['👤', '🔥', '💧', '⚡', '🌿', '⭐', '🏆', '⚽', '🏀', '🎮', '🃏', '💎', '🦊', '🦁', '🐉'];
+let selectedAvatar = '👤';
+
+// ===================== AUTH & DATA MANAGEMENT =====================
+function loadUserData() {
+  if (currentUser) {
+    const collKey = `collection_${currentUser.email}`;
+    myCollection = JSON.parse(localStorage.getItem(collKey)) || [];
+    
+    // 로컬에 저장된 커스텀 프로필 로드
+    const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
+    if (profiles[currentUser.email]) {
+      currentUser.name = profiles[currentUser.email].name;
+      currentUser.picture = profiles[currentUser.email].picture;
+    }
+  } else {
+    myCollection = [];
+  }
+}
+
+function saveUserCollection() {
+  if (currentUser) {
+    const key = `collection_${currentUser.email}`;
+    localStorage.setItem(key, JSON.stringify(myCollection));
+  }
+}
+
+function parseJwt(token) {
+  var base64Url = token.split('.')[1];
+  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+  return JSON.parse(jsonPayload);
+}
+
+function handleCredentialResponse(response) {
+  const user = parseJwt(response.credential);
+  currentUser = {
+    name: user.name,
+    email: user.email,
+    picture: '👤'
+  };
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  loadUserData();
+  updateUserUI();
+  updateStats();
+  renderCollection();
+  showToast('👋', `${currentUser.name}님, 환영합니다!`);
+  goScreen('home');
+}
+
+function handleLogout() {
+  currentUser = null;
+  myCollection = [];
+  localStorage.removeItem('currentUser');
+  updateUserUI();
+  updateStats();
+  renderCollection();
+  showToast('🔒', '로그아웃 되었습니다');
+  goScreen('home');
+}
+
+// ===================== PROFILE EDITING =====================
+function openEditProfile() {
+  if (!currentUser) return;
+  const modal = document.getElementById('edit-profile-modal');
+  const picker = document.getElementById('avatar-picker');
+  const preview = document.getElementById('edit-preview-icon');
+  const input = document.getElementById('edit-nickname');
+
+  input.value = currentUser.name;
+  selectedAvatar = currentUser.picture || '👤';
+  preview.textContent = selectedAvatar;
+
+  picker.innerHTML = defaultAvatars.map(av => `
+    <div class="avatar-option" onclick="selectAvatar('${av}', this)" 
+         style="cursor:pointer; font-size:24px; padding:8px; border-radius:12px; text-align:center; transition:0.2s; ${av === selectedAvatar ? 'background:var(--surface3); border:1px solid var(--gold);' : ''}">
+      ${av}
+    </div>
+  `).join('');
+
+  modal.style.display = 'flex';
+}
+
+function selectAvatar(av, el) {
+  selectedAvatar = av;
+  document.getElementById('edit-preview-icon').textContent = av;
+  document.querySelectorAll('.avatar-option').forEach(opt => {
+    opt.style.background = 'transparent';
+    opt.style.border = 'none';
+  });
+  el.style.background = 'var(--surface3)';
+  el.style.border = '1px solid var(--gold)';
+}
+
+function closeEditProfile() {
+  document.getElementById('edit-profile-modal').style.display = 'none';
+}
+
+function saveProfile() {
+  const newName = document.getElementById('edit-nickname').value.trim();
+  if (!newName) return showToast('⚠️', '닉네임을 입력해주세요');
+
+  currentUser.name = newName;
+  currentUser.picture = selectedAvatar;
+
+  const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
+  profiles[currentUser.email] = { name: newName, picture: selectedAvatar };
+  localStorage.setItem('userProfiles', JSON.stringify(profiles));
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+  updateUserUI();
+  closeEditProfile();
+  showToast('✅', '프로필이 변경되었습니다');
+}
+
+function updateUserUI() {
+  const loggedOut = document.getElementById('profile-logged-out');
+  const loggedIn = document.getElementById('profile-logged-in');
+  const headerAvatar = document.getElementById('header-avatar');
+  const userName = document.getElementById('user-name');
+  const userEmail = document.getElementById('user-email');
+  const userPhoto = document.getElementById('user-photo');
+
+  if (currentUser) {
+    if (loggedOut) loggedOut.style.display = 'none';
+    if (loggedIn) loggedIn.style.display = 'flex';
+    if (userName) userName.textContent = currentUser.name;
+    if (userEmail) userEmail.textContent = currentUser.email;
+    
+    const av = currentUser.picture || '👤';
+    if (userPhoto) userPhoto.textContent = av;
+    if (headerAvatar) headerAvatar.textContent = av;
+  } else {
+    if (loggedOut) loggedOut.style.display = 'flex';
+    if (loggedIn) loggedIn.style.display = 'none';
+    if (headerAvatar) headerAvatar.textContent = '👤';
+    renderGoogleButton();
+  }
+}
 
 // ===================== THEME =====================
 function toggleTheme() {
@@ -85,6 +225,24 @@ function loadTheme() {
 }
 
 // ===================== DYNAMIC DATA FETCHING =====================
+function renderFeaturedCards() {
+  const grid = document.querySelector('#screen-home .card-grid');
+  if(!grid) return;
+
+  grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
+    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
+      <div class="c-img" style="background: var(--surface2)">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
+        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
+      </div>
+      <div class="c-info">
+        <div class="c-name">${card.name}</div>
+        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
 function fetchFeaturedCards() {
   const shuffled = [...recommendedPool].sort(() => 0.5 - Math.random());
   currentFeatured = shuffled.slice(0, 6);
@@ -107,40 +265,26 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playShutterSound() {
   const oscillator = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
-  
   oscillator.type = 'square';
   oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
   oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
-  
   gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
   gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-  
   oscillator.connect(gainNode);
   gainNode.connect(audioCtx.destination);
-  
   oscillator.start();
   oscillator.stop(audioCtx.currentTime + 0.1);
 }
 
 async function initCamera() {
   const video = document.getElementById('video-stream');
-  const placeholder = document.querySelector('.vf-placeholder');
-  const hint = document.querySelector('.vf-hint');
-
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-      audio: false
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
     cameraStream = stream;
     video.srcObject = stream;
     video.style.display = 'block';
-    if(placeholder) placeholder.style.display = 'none';
-    hint.textContent = '카드를 사각형 안에 맞춰주세요';
   } catch (err) {
-    console.error("Camera error:", err);
     showToast('❌', '카메라 권한이 필요합니다');
-    hint.textContent = '카메라 권한을 허용해주세요';
   }
 }
 
@@ -149,25 +293,16 @@ function stopCamera() {
     cameraStream.getTracks().forEach(track => track.stop());
     cameraStream = null;
   }
-  const video = document.getElementById('video-stream');
-  if(video) {
-    video.srcObject = null;
-    video.style.display = 'none';
-  }
-  const placeholder = document.querySelector('.vf-placeholder');
-  if(placeholder) placeholder.style.display = 'block';
 }
 
 function captureFrame() {
   const video = document.getElementById('video-stream');
   const canvas = document.getElementById('capture-canvas');
   if (!video || !canvas) return null;
-
   const context = canvas.getContext('2d');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  
   return canvas.toDataURL('image/jpeg', 0.8);
 }
 
@@ -187,6 +322,11 @@ function goScreen(name) {
   nav.style.display = noNavScreens.includes(name) ? 'none' : 'flex';
 
   if (name === 'scan') {
+    if (!currentUser) {
+      showToast('🔑', '로그인이 필요한 기능입니다');
+      goScreen('profile');
+      return;
+    }
     resetScan();
     initCamera();
   } else {
@@ -205,39 +345,7 @@ function goScreen(name) {
   previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
 }
 
-function renderWishlist() {
-  const grid = document.getElementById('wishlist-grid');
-  const empty = document.getElementById('wishlist-empty');
-  if(!grid || !empty) return;
-
-  const wished = myCollection.filter(c => c.wish);
-  
-  if(wished.length === 0) {
-    grid.innerHTML = '';
-    empty.style.display = 'flex';
-  } else {
-    empty.style.display = 'none';
-    grid.innerHTML = wished.map(card => {
-      const realIdx = myCollection.findIndex(c => c.date === card.date);
-      return `
-        <div class="cg-card" onclick="openCapturedDetail(${realIdx})">
-          <div class="cg-bg">
-            <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
-            <div class="cg-wish-indicator">❤️</div>
-          </div>
-          <div class="cg-overlay">
-            <div class="cg-name">${card.name}</div>
-            <div class="cg-rare">${card.rarity}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-}
-
-let currentFilter = 'all';
-let currentSort = 'newest';
-
+// ===================== COLLECTION LOGIC =====================
 function updateStats() {
   const totalCount = myCollection.length;
   const pokeCount = myCollection.filter(c => c.category === 'pokemon').length;
@@ -247,118 +355,15 @@ function updateStats() {
 
   const totalEl = document.getElementById('total-count');
   if(totalEl) totalEl.textContent = totalCount;
-
   const collSub = document.getElementById('coll-sub');
   if(collSub) collSub.textContent = `${totalCount}장 보유중`;
   
-  const statPoke = document.getElementById('stat-pokemon');
-  if(statPoke) statPoke.textContent = `🔴 ${pokeCount}`;
-  
-  const statSports = document.getElementById('stat-sports');
-  if(statSports) statSports.textContent = `⚽ ${sportsCount}`;
-  
-  const statTcg = document.getElementById('stat-tcg');
-  if(statTcg) statTcg.textContent = `🃏 ${tcgCount}`;
+  document.getElementById('stat-pokemon').textContent = `🔴 ${pokeCount}`;
+  document.getElementById('stat-sports').textContent = `⚽ ${sportsCount}`;
+  document.getElementById('stat-tcg').textContent = `🃏 ${tcgCount}`;
 
-  // Profile Sync
-  const profTotal = document.getElementById('prof-total');
-  if(profTotal) profTotal.textContent = totalCount;
-  const profWish = document.getElementById('prof-wish');
-  if(profWish) profWish.textContent = wishCount;
-}
-
-// ===================== RENDER COMPONENTS =====================
-function renderFeaturedCards() {
-  const grid = document.querySelector('#screen-home .card-grid');
-  if(!grid) return;
-
-  grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
-    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
-      <div class="c-img" style="background: var(--surface2)">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
-        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
-      </div>
-      <div class="c-info">
-        <div class="c-name">${card.name}</div>
-        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderFullFeaturedGrid() {
-  const grid = document.getElementById('featured-full-grid');
-  if(!grid) return;
-
-  grid.innerHTML = currentFeatured.map(card => `
-    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
-      <div class="c-img" style="background: var(--surface2)">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
-        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
-      </div>
-      <div class="c-info">
-        <div class="c-name">${card.name}</div>
-        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderRecentCards() {
-  const scroll = document.querySelector('.recent-scroll');
-  if(!scroll) return;
-
-  if(myCollection.length === 0) {
-    scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
-    return;
-  }
-
-  scroll.innerHTML = myCollection.slice(0, 5).map((card, index) => `
-    <div class="r-card" onclick="openCapturedDetail(${index})">
-      <div class="r-card-img" style="background: var(--surface2)">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
-      </div>
-      <div class="r-card-name">${card.name}</div>
-    </div>
-  `).join('');
-}
-
-function filterHome(type, el) {
-  currentFilter = type;
-  document.querySelectorAll('#home-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
-  if(el) {
-    if(type === 'all') el.className = 'cat-tab active-all';
-    else if(type === 'pokemon') el.className = 'cat-tab active-poke';
-    else if(type === 'sports') el.className = 'cat-tab active-soccer';
-    else if(type === 'tcg') el.className = 'cat-tab active-all'; 
-  }
-  const collTabs = document.querySelectorAll('#filter-row .chip');
-  collTabs.forEach(c => c.classList.remove('active'));
-  const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
-  if(targetIdx !== -1 && collTabs[targetIdx]) collTabs[targetIdx].classList.add('active');
-}
-
-function filterColl(type, el) {
-  currentFilter = type;
-  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
-  if(el) el.classList.add('active');
-  
-  const homeTabs = document.querySelectorAll('#home-tabs .cat-tab');
-  homeTabs.forEach(t => t.className = 'cat-tab');
-  const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
-  if(targetIdx !== -1 && homeTabs[targetIdx]) {
-    const classMap = ['active-all', 'active-poke', 'active-soccer', 'active-all'];
-    homeTabs[targetIdx].className = 'cat-tab ' + classMap[targetIdx];
-  }
-
-  renderCollection();
-}
-
-function setSort(type, el) {
-  currentSort = type;
-  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
-  if(el) el.classList.add('active');
-  renderCollection();
+  document.getElementById('prof-total').textContent = totalCount;
+  document.getElementById('prof-wish').textContent = wishCount;
 }
 
 function renderCollection() {
@@ -366,17 +371,10 @@ function renderCollection() {
   if(!grid) return;
   
   let filtered = [...myCollection];
-  if(currentFilter !== 'all') {
-    filtered = filtered.filter(c => c.category === currentFilter);
-  }
-
-  if(currentSort === 'newest') {
-    filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
-  } else if(currentSort === 'oldest') {
-    filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
-  } else if(currentSort === 'wishlist') {
-    filtered = filtered.filter(c => c.wish);
-  }
+  if(currentFilter !== 'all') filtered = filtered.filter(c => c.category === currentFilter);
+  if(currentSort === 'newest') filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+  else if(currentSort === 'oldest') filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
+  else if(currentSort === 'wishlist') filtered = filtered.filter(c => c.wish);
 
   let html = filtered.map((card) => {
     const realIdx = myCollection.findIndex(c => c.date === card.date);
@@ -394,164 +392,68 @@ function renderCollection() {
     `;
   }).join('');
 
-  html += `
-    <div class="cg-add" onclick="goScreen('scan')">
-      <div class="cg-add-icon">+</div>
-      <div class="cg-add-lbl">카드 추가</div>
-    </div>
-  `;
+  html += `<div class="cg-add" onclick="goScreen('scan')"><div class="cg-add-icon">+</div><div class="cg-add-lbl">카드 추가</div></div>`;
   grid.innerHTML = html;
 }
 
-// ===================== SCAN & AI =====================
-async function triggerScan() {
-  if(scanning) return;
-  scanning = true;
-  
-  playShutterSound();
-  const flash = document.getElementById('camera-flash');
-  if(flash) {
-    flash.classList.remove('flash-anim');
-    void flash.offsetWidth;
-    flash.classList.add('flash-anim');
+function renderWishlist() {
+  const grid = document.getElementById('wishlist-grid');
+  const empty = document.getElementById('wishlist-empty');
+  if(!grid || !empty) return;
+  const wished = myCollection.filter(c => c.wish);
+  if(wished.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+  } else {
+    empty.style.display = 'none';
+    grid.innerHTML = wished.map(card => {
+      const realIdx = myCollection.findIndex(c => c.date === card.date);
+      return `
+        <div class="cg-card" onclick="openCapturedDetail(${realIdx})">
+          <div class="cg-bg">
+            <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+            <div class="cg-wish-indicator">❤️</div>
+          </div>
+          <div class="cg-overlay"><div class="cg-name">${card.name}</div><div class="cg-rare">${card.rarity}</div></div>
+        </div>
+      `;
+    }).join('');
   }
-
-  const vf = document.getElementById('viewfinder');
-  const placeholder = vf.querySelector('.vf-placeholder');
-  const hint = vf.querySelector('.vf-hint');
-  
-  if(placeholder) {
-    placeholder.style.display = 'block';
-    placeholder.textContent = '⏳';
-  }
-  hint.textContent = 'AI가 이미지 분석 중...';
-
-  capturedImageData = captureFrame();
-  
-  setTimeout(() => {
-    const pool = recommendedPool.filter(c => c.category === (Math.random() > 0.5 ? 'pokemon' : 'sports'));
-    const result = pool[Math.floor(Math.random() * pool.length)];
-    
-    currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
-
-    const thumb = document.getElementById('ai-thumb');
-    if(thumb) {
-      thumb.className = 'ai-thumb bg-holo';
-      thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
-    }
-
-    document.getElementById('ai-name').textContent = currentAiResult.name;
-    document.getElementById('ai-set').textContent = currentAiResult.set;
-    document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
-    document.getElementById('ai-cat').textContent = currentAiResult.category === 'pokemon' ? '포켓몬 카드' : (currentAiResult.category === 'sports' ? '스포츠 카드' : 'TCG 카드');
-    document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
-
-    document.getElementById('ai-result').style.display = 'block';
-
-    if(placeholder) placeholder.textContent = '✅';
-    hint.textContent = '인식 완료!';
-    scanning = false;
-  }, 1000);
 }
 
-function resetScan() {
-  document.getElementById('ai-result').style.display = 'none';
-  const vf = document.getElementById('viewfinder');
-  const placeholder = vf.querySelector('.vf-placeholder');
-  const hint = vf.querySelector('.vf-hint');
-  
-  if(placeholder) {
-    placeholder.textContent = '🃏';
-    placeholder.style.display = cameraStream ? 'none' : 'block';
+function renderRecentCards() {
+  const scroll = document.querySelector('.recent-scroll');
+  if(!scroll) return;
+  if(myCollection.length === 0) {
+    scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
+    return;
   }
-  hint.textContent = cameraStream ? '카드를 사각형 안에 맞춰주세요' : '탭하여 카드를 스캔하세요';
-  scanning = false;
-  capturedImageData = null;
-  currentAiResult = null;
+  scroll.innerHTML = myCollection.slice(0, 5).map((card, index) => `
+    <div class="r-card" onclick="openCapturedDetail(${index})">
+      <div class="r-card-img" style="background: var(--surface2)">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+      </div>
+      <div class="r-card-name">${card.name}</div>
+    </div>
+  `).join('');
 }
 
 function addToCollection() {
-  if (!currentAiResult || !capturedImageData) return;
-
-  const newCard = {
-    ...currentAiResult,
-    image: capturedImageData,
-    date: new Date().toISOString()
-  };
-
+  if (!currentAiResult || !capturedImageData || !currentUser) return;
+  const newCard = { ...currentAiResult, image: capturedImageData, date: new Date().toISOString() };
   myCollection.unshift(newCard);
-  localStorage.setItem('myCollection', JSON.stringify(myCollection));
-
+  saveUserCollection();
   showToast('✅', '컬렉션에 추가됐습니다!');
   setTimeout(() => { goScreen('collection'); }, 1000);
 }
 
-async function shareCollection() {
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: '나의 TCG 컬렉션',
-        text: `TCGfinder에서 나의 컬렉션(${myCollection.length}장)을 구경해보세요!`,
-        url: window.location.href
-      });
-    } catch (err) {
-      console.log('Share canceled');
-    }
-  } else {
-    showToast('📤', '공유 기능은 모바일 브라우저에서 최적화되어 있습니다.');
-  }
-}
-
-async function requestFullPermissions() {
-  try {
-    await navigator.mediaDevices.getUserMedia({ video: true });
-    showToast('📸', '카메라 권한이 허용되었습니다.');
-    setTimeout(() => {
-      showToast('📂', '파일/갤러리 접근 권한이 확인되었습니다.');
-    }, 1000);
-  } catch (err) {
-    showToast('❌', '권한 요청 중 오류가 발생했습니다.');
-  }
-}
-
-function openFeaturedDetail(name) {
-  const card = recommendedPool.find(c => c.name === name);
-  if(!card) return;
-  
-  document.getElementById('d-name').textContent = card.name;
-  document.getElementById('d-set').textContent = card.set;
-  document.getElementById('d-emoji').textContent = '🃏';
-  document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:contain;padding:20px;">`;
-  
-  const detailBack = document.getElementById('detail-back');
-  detailBack.onclick = () => goScreen('home');
-  
-  goScreen('detail');
-}
-
 function toggleWish(index) {
   myCollection[index].wish = !myCollection[index].wish;
-  localStorage.setItem('myCollection', JSON.stringify(myCollection));
+  saveUserCollection();
   renderCollection();
   renderWishlist();
   updateStats();
   showToast(myCollection[index].wish ? '❤️' : '💔', myCollection[index].wish ? '위시에 추가됨' : '위시 해제됨');
-}
-
-function openCapturedDetail(index) {
-  const card = myCollection[index];
-  
-  document.getElementById('d-name').textContent = card.name;
-  document.getElementById('d-set').textContent = card.set;
-  document.getElementById('d-showcase').innerHTML = `
-    <img src="${card.image}" style="width:100%;height:100%;object-fit:cover;">
-    <div class="wish-toggle-btn ${card.wish?'active':''}" onclick="event.stopPropagation(); toggleWish(${index}); this.classList.toggle('active');">❤️</div>
-  `;
-  
-  const detailBack = document.getElementById('detail-back');
-  detailBack.onclick = () => goScreen('collection');
-  
-  goScreen('detail');
 }
 
 // ===================== UI HELPERS =====================
@@ -567,100 +469,102 @@ function showToast(icon, msg) {
 
 function updateClock() {
   const now = new Date();
-  const h = now.getHours().toString().padStart(2,'0');
-  const m = now.getMinutes().toString().padStart(2,'0');
-  const time = h + ':' + m;
   document.querySelectorAll('.real-time-clock').forEach(el => {
-    el.textContent = time;
+    el.textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
   });
-}
-
-function showManual() {
-  showToast('✏️', '직접 입력 기능은 개발 중이에요!');
-}
-
-// ===================== AUTH & GOOGLE LOGIN =====================
-function parseJwt(token) {
-  var base64Url = token.split('.')[1];
-  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
-  return JSON.parse(jsonPayload);
-}
-
-function handleCredentialResponse(response) {
-  const user = parseJwt(response.credential);
-  currentUser = {
-    name: user.name,
-    email: user.email,
-    picture: user.picture
-  };
-  localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  updateUserUI();
-  showToast('👋', `${currentUser.name}님, 환영합니다!`);
-}
-
-function updateUserUI() {
-  const loggedOut = document.getElementById('profile-logged-out');
-  const loggedIn = document.getElementById('profile-logged-in');
-  const headerAvatar = document.getElementById('header-avatar');
-  const userName = document.getElementById('user-name');
-  const userEmail = document.getElementById('user-email');
-  const userPhoto = document.getElementById('user-photo');
-
-  if (currentUser) {
-    if (loggedOut) loggedOut.style.display = 'none';
-    if (loggedIn) loggedIn.style.display = 'flex';
-    if (userName) userName.textContent = currentUser.name;
-    if (userEmail) userEmail.textContent = currentUser.email;
-    
-    // 사진 주소가 있으면 고화질 파라미터 추가, 없으면 기본 이보지
-    const photoUrl = currentUser.picture ? currentUser.picture.replace(/=s\d+-c/g, "=s120-c") : null;
-    
-    const imgHtml = photoUrl 
-      ? `<img src="${photoUrl}" alt="Profile" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.innerHTML='👤'">`
-      : '👤';
-
-    if (userPhoto) userPhoto.innerHTML = imgHtml;
-    if (headerAvatar) headerAvatar.innerHTML = imgHtml;
-  } else {
-    if (loggedOut) loggedOut.style.display = 'flex';
-    if (loggedIn) loggedIn.style.display = 'none';
-    if (headerAvatar) headerAvatar.innerHTML = '👤'; // 이모지 텍스트로 초기화
-    renderGoogleButton();
-  }
-}
-
-function handleLogout() {
-  currentUser = null;
-  localStorage.removeItem('currentUser');
-  updateUserUI();
-  showToast('🔒', '로그아웃 되었습니다');
 }
 
 function renderGoogleButton() {
   const btnContainer = document.getElementById("google-login-btn");
   if (!btnContainer || typeof google === 'undefined') return;
-  google.accounts.id.renderButton(
-    btnContainer,
-    { theme: "outline", size: "large", width: 240, shape: "pill" }
-  );
+  google.accounts.id.renderButton(btnContainer, { theme: "outline", size: "large", width: 240, shape: "pill" });
 }
 
 window.onload = function () {
   if (typeof google !== 'undefined') {
     google.accounts.id.initialize({
-      client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com", // Replace with actual Client ID
+      client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com",
       callback: handleCredentialResponse
     });
   }
+  loadUserData();
   updateUserUI();
+  updateStats();
+  updateClock();
+  setInterval(updateClock, 1000);
+  fetchFeaturedCards();
+  goScreen('home');
 }
 
-// Initial load
-loadTheme();
-updateClock();
-setInterval(updateClock, 1000);
-fetchFeaturedCards();
-goScreen('home');
+function openCapturedDetail(index) {
+  const card = myCollection[index];
+  document.getElementById('d-name').textContent = card.name;
+  document.getElementById('d-set').textContent = card.set;
+  document.getElementById('d-showcase').innerHTML = `
+    <img src="${card.image}" style="width:100%;height:100%;object-fit:cover;">
+    <div class="wish-toggle-btn ${card.wish?'active':''}" onclick="event.stopPropagation(); toggleWish(${index}); this.classList.toggle('active');">❤️</div>
+  `;
+  const detailBack = document.getElementById('detail-back');
+  detailBack.onclick = () => goScreen('collection');
+  goScreen('detail');
+}
+
+function openFeaturedDetail(name) {
+  const card = recommendedPool.find(c => c.name === name);
+  if(!card) return;
+  document.getElementById('d-name').textContent = card.name;
+  document.getElementById('d-set').textContent = card.set;
+  document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:contain;padding:20px;">`;
+  document.getElementById('detail-back').onclick = () => goScreen('home');
+  goScreen('detail');
+}
+
+function filterHome(type, el) {
+  currentFilter = type;
+  document.querySelectorAll('#home-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
+  if(el) {
+    const classMap = { all: 'active-all', pokemon: 'active-poke', sports: 'active-soccer', tcg: 'active-all' };
+    el.className = 'cat-tab ' + classMap[type];
+  }
+  renderCollection();
+}
+
+function filterColl(type, el) {
+  currentFilter = type;
+  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderCollection();
+}
+
+function setSort(type, el) {
+  currentSort = type;
+  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderCollection();
+}
+
+function resetScan() {
+  document.getElementById('ai-result').style.display = 'none';
+  capturedImageData = null;
+  currentAiResult = null;
+}
+
+function triggerScan() {
+  if(scanning) return;
+  scanning = true;
+  playShutterSound();
+  capturedImageData = captureFrame();
+  setTimeout(() => {
+    const pool = recommendedPool.filter(c => c.category === (Math.random() > 0.5 ? 'pokemon' : 'sports'));
+    const result = pool[Math.floor(Math.random() * pool.length)];
+    currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
+    document.getElementById('ai-thumb').innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    document.getElementById('ai-name').textContent = currentAiResult.name;
+    document.getElementById('ai-set').textContent = currentAiResult.set;
+    document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
+    document.getElementById('ai-cat').textContent = currentAiResult.category === 'pokemon' ? '포켓몬 카드' : '스포츠 카드';
+    document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
+    document.getElementById('ai-result').style.display = 'block';
+    scanning = false;
+  }, 1000);
+}

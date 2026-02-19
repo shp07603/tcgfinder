@@ -347,10 +347,13 @@
 
     <!-- Profile Header (Logged In) -->
     <div id="profile-logged-in" class="profile-hero" style="display: none;">
-      <div class="profile-avatar" id="user-photo">👤</div>
+      <div class="profile-avatar" id="user-photo" onclick="openEditProfile()">👤</div>
       <div class="profile-name" id="user-name">나의 컬렉션</div>
       <div class="profile-since" id="user-email">COLLECTOR SINCE 2024</div>
-      <div style="margin-top: 10px; font-size: 11px; color: var(--text3); text-decoration: underline; cursor: pointer;" onclick="handleLogout()">로그아웃</div>
+      <div style="display: flex; gap: 10px; margin-top: 12px;">
+        <div class="edit-profile-btn" onclick="openEditProfile()" style="font-size: 12px; color: var(--gold); border: 1px solid var(--gold); padding: 5px 12px; border-radius: 20px; cursor: pointer;">프로필 수정</div>
+        <div class="logout-link-btn" onclick="handleLogout()" style="font-size: 12px; color: var(--text3); border: 1px solid var(--border); padding: 5px 12px; border-radius: 20px; cursor: pointer;">로그아웃</div>
+      </div>
     </div>
 
     <div class="profile-stats">
@@ -481,5 +484,30 @@
 </div>
 
 <script src="main.js"></script>
+
+  <!-- ========== PROFILE EDIT MODAL ========== -->
+  <div id="edit-profile-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 20px;">
+    <div class="modal-content" style="background: var(--surface); width: 100%; max-width: 360px; border-radius: 28px; padding: 28px; border: 1px solid var(--border2); position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div style="font-size: 20px; font-weight: 800; font-family: 'Playfair Display', serif;">프로필 수정</div>
+        <div onclick="closeEditProfile()" style="cursor: pointer; font-size: 24px; color: var(--text3);">✕</div>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
+        <div id="edit-preview-icon" style="width: 90px; height: 90px; border-radius: 50%; background: var(--grad-gold); display: flex; align-items: center; justify-content: center; font-size: 42px; margin-bottom: 18px; box-shadow: 0 10px 25px var(--gold-glow); overflow: hidden; border: 2px solid var(--gold);">👤</div>
+        <div id="avatar-picker" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; width: 100%; max-height: 120px; overflow-y: auto; padding: 5px;">
+          <!-- Emojis injected by JS -->
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; font-weight: 700;">닉네임</label>
+        <input type="text" id="edit-nickname" style="width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; color: var(--text); font-family: inherit; font-size: 15px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+
+      <button class="btn-primary" style="width: 100%; padding: 16px; font-size: 16px;" onclick="saveProfile()">저장하기</button>
+    </div>
+  </div>
+
 </body>
 </html>
