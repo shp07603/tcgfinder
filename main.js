@@ -643,7 +643,7 @@ function renderGoogleButton() {
 window.onload = function () {
   if (typeof google !== 'undefined') {
     google.accounts.id.initialize({
-      client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", // Replace with actual Client ID
+      client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com", // Replace with actual Client ID
       callback: handleCredentialResponse
     });
   }
