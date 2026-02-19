@@ -596,6 +596,27 @@ html, body {
 .bg-water { background:linear-gradient(135deg,#00112a 0%,#001e3d 100%); }
 .bg-fire  { background:linear-gradient(135deg,#2a0800 0%,#3d1200 100%); }
 
+.cg-wish-indicator {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(0,0,0,0.4); border-radius: 50%;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; backdrop-filter: blur(4px);
+}
+
+.wish-toggle-btn {
+  position: absolute; top: 16px; right: 16px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; cursor: pointer; border: 1.5px solid rgba(255,255,255,0.2);
+  transition: all 0.2s; z-index: 5;
+  filter: grayscale(1) opacity(0.6);
+}
+.wish-toggle-btn.active {
+  filter: none; opacity: 1; transform: scale(1.1);
+  border-color: #ff4d4d;
+}
+
 /* ===================== FADE IN ANIMATIONS ===================== */
 .fade-up {
   opacity:0; transform:translateY(16px);

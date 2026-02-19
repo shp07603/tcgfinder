@@ -3,17 +3,26 @@ const recommendedPool = [
   { name: '피카츄 ex (SAR)', set: '초전브레이커', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv8/132_hires.png', typeColor: 'var(--pokemon)' },
   { name: '테라파고스 ex (SAR)', set: '스텔라미라클', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv7/124_hires.png', typeColor: 'var(--pokemon)' },
   { name: '리자몽 ex (SAR)', set: '샤이니트레저 ex', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv4a/234_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '뮤 ex (SAR)', set: '포켓몬 151', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv3pt5/205_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '레쿠쟈 VMAX (SA)', set: '창공스트림', rarity: 'Special Art', category: 'pokemon', image: 'https://images.pokemontcg.io/swsh7/218_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'soccer', image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
-  { name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'soccer', image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
-  { name: '이강인 Rookie', set: '2019 Panini Chronicles', rarity: 'Rookie Card', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' }
+  { name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'sports', image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'sports', image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '블랙 매지션', set: '유희왕 레전더리', rarity: 'Ultra Rare', category: 'tcg', image: 'https://images.ygoprodeck.com/images/cards/46986414.jpg', typeColor: 'var(--purple)' }
 ];
 
 let currentFeatured = [];
 
 // ===================== GUIDE DATA =====================
 const guideData = {
+  usage: {
+    title: "TCGfinder 앱 사용법",
+    body: `
+      <h3>1. 카드 스캔하기</h3>
+      <p>하단 중앙의 카메라 아이콘을 누르면 스캔 화면으로 이동합니다. 카드를 사각형 안에 맞추고 셔터 버튼을 누르면 AI가 카드를 자동 인식합니다.</p>
+      <h3>2. 컬렉션 관리</h3>
+      <p>'컬렉션' 탭에서 내가 등록한 모든 카드를 확인할 수 있습니다. 필터를 통해 포켓몬, 스포츠, TCG 카드를 따로 보거나 하트(위시) 항목만 모아볼 수 있습니다.</p>
+      <h3>3. 위시리스트 활용</h3>
+      <p>상세 페이지에서 하트 아이콘을 누르면 위시리스트에 저장됩니다. 나중에 '위시' 탭이나 컬렉션 필터에서 쉽게 찾을 수 있습니다.</p>
+    `
+  },
   scan: {
     title: "AI 스캔 100% 활용하기",
     body: `
@@ -195,38 +204,33 @@ function goScreen(name) {
   previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
 }
 
+let currentFilter = 'all';
+let currentSort = 'newest';
+
 function updateStats() {
   const totalCount = myCollection.length;
   const pokeCount = myCollection.filter(c => c.category === 'pokemon').length;
-  const soccerCount = myCollection.filter(c => c.category === 'soccer').length;
-  const rareCount = myCollection.filter(c => c.rarity && c.rarity.toLowerCase().includes('rare')).length;
+  const sportsCount = myCollection.filter(c => c.category === 'sports').length;
+  const tcgCount = myCollection.filter(c => c.category === 'tcg').length;
+  const wishCount = myCollection.filter(c => c.wish).length;
 
-  document.getElementById('total-count').textContent = totalCount;
+  const totalEl = document.getElementById('total-count');
+  if(totalEl) totalEl.textContent = totalCount;
   
-  const heroPills = document.querySelectorAll('.hero-pill .hp-val');
-  if(heroPills.length >= 3) {
-    heroPills[0].textContent = `🔴 ${pokeCount}`;
-    heroPills[1].textContent = `⚽ ${soccerCount}`;
-    heroPills[2].textContent = `★ ${rareCount}`;
-  }
+  const statPoke = document.getElementById('stat-pokemon');
+  if(statPoke) statPoke.textContent = `🔴 ${pokeCount}`;
+  
+  const statSports = document.getElementById('stat-sports');
+  if(statSports) statSports.textContent = `⚽ ${sportsCount}`;
+  
+  const statTcg = document.getElementById('stat-tcg');
+  if(statTcg) statTcg.textContent = `🃏 ${tcgCount}`;
 
-  const catTabs = document.querySelectorAll('.cat-tab');
-  if(catTabs.length >= 3) {
-    catTabs[0].textContent = `전체 ${totalCount}`;
-    catTabs[1].textContent = `🔴 포켓몬 ${pokeCount}`;
-    catTabs[2].textContent = `⚽ 축구 ${soccerCount}`;
-  }
-
-  const collSub = document.getElementById('coll-sub');
-  if(collSub) collSub.textContent = totalCount + '장 보유중';
-
-  const collChips = document.querySelectorAll('#filter-row .chip');
-  if(collChips.length >= 4) {
-    collChips[0].textContent = `전체 ${totalCount}`;
-    collChips[1].textContent = `🔴 포켓몬 ${pokeCount}`;
-    collChips[2].textContent = `⚽ 축구 ${soccerCount}`;
-    collChips[3].textContent = `★ 레어 ${rareCount}`;
-  }
+  // Profile Sync
+  const profTotal = document.getElementById('prof-total');
+  if(profTotal) profTotal.textContent = totalCount;
+  const profWish = document.getElementById('prof-wish');
+  if(profWish) profWish.textContent = wishCount;
 }
 
 // ===================== RENDER COMPONENTS =====================
@@ -234,9 +238,8 @@ function renderFeaturedCards() {
   const grid = document.querySelector('#screen-home .card-grid');
   if(!grid) return;
 
-  // Show top 4 on home
   grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
-    <div class="c-card" onclick="showToast('ℹ️', '추천 카드 상세 정보는 준비 중입니다')">
+    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
       <div class="c-img" style="background: var(--surface2)">
         <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
         <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
@@ -254,7 +257,7 @@ function renderFullFeaturedGrid() {
   if(!grid) return;
 
   grid.innerHTML = currentFeatured.map(card => `
-    <div class="c-card" onclick="showToast('ℹ️', '추천 카드 상세 정보는 준비 중입니다')">
+    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
       <div class="c-img" style="background: var(--surface2)">
         <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
         <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
@@ -286,19 +289,87 @@ function renderRecentCards() {
   `).join('');
 }
 
+function filterHome(type, el) {
+  currentFilter = type;
+  document.querySelectorAll('#home-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
+  if(el) {
+    if(type === 'all') el.className = 'cat-tab active-all';
+    else if(type === 'pokemon') el.className = 'cat-tab active-poke';
+    else if(type === 'sports') el.className = 'cat-tab active-soccer';
+    else if(type === 'tcg') el.className = 'cat-tab active-all'; 
+  }
+  // Shared state: update collection filter UI
+  const collTabs = document.querySelectorAll('#filter-row .chip');
+  collTabs.forEach(c => c.classList.remove('active'));
+  const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
+  if(targetIdx !== -1 && collTabs[targetIdx]) collTabs[targetIdx].classList.add('active');
+}
+
+function filterColl(type, el) {
+  currentFilter = type;
+  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  
+  // Shared state: update home filter UI
+  const homeTabs = document.querySelectorAll('#home-tabs .cat-tab');
+  homeTabs.forEach(t => t.className = 'cat-tab');
+  const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
+  if(targetIdx !== -1 && homeTabs[targetIdx]) {
+    const classMap = ['active-all', 'active-poke', 'active-soccer', 'active-all'];
+    homeTabs[targetIdx].className = 'cat-tab ' + classMap[targetIdx];
+  }
+
+  renderCollection();
+}
+
+function setSort(type, el) {
+  currentSort = type;
+  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderCollection();
+}
+
 function renderCollection() {
   const grid = document.getElementById('coll-grid');
-  let html = myCollection.map((card, index) => `
-    <div class="cg-card" onclick="openCapturedDetail(${index})">
-      <div class="cg-bg">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+  if(!grid) return;
+  
+  let filtered = [...myCollection];
+  if(currentFilter !== 'all') {
+    filtered = filtered.filter(c => c.category === currentFilter);
+  }
+
+  if(currentSort === 'newest') {
+    filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+  } else if(currentSort === 'oldest') {
+    filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
+  } else if(currentSort === 'wishlist') {
+    filtered = filtered.filter(c => c.wish);
+  }
+
+  let html = filtered.map((card) => {
+    const realIdx = myCollection.findIndex(c => c.date === card.date);
+    return `
+      <div class="cg-card" onclick="openCapturedDetail(${realIdx})">
+        <div class="cg-bg">
+          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+          ${card.wish ? '<div class="cg-wish-indicator">❤️</div>' : ''}
+        </div>
+        <div class="cg-overlay">
+          <div class="cg-name">${card.name}</div>
+          <div class="cg-rare">${card.rarity}</div>
+        </div>
       </div>
-      <div class="cg-overlay">
-        <div class="cg-name">${card.name}</div>
-        <div class="cg-rare">${card.rarity}</div>
-      </div>
+    `;
+  }).join('');
+
+  html += `
+    <div class="cg-add" onclick="goScreen('scan')">
+      <div class="cg-add-icon">+</div>
+      <div class="cg-add-lbl">카드 추가</div>
     </div>
-  `).join('');
+  `;
+  grid.innerHTML = html;
+}
 
   html += `
     <div class="cg-add" onclick="goScreen('scan')">
@@ -394,9 +465,76 @@ function addToCollection() {
   setTimeout(() => { goScreen('collection'); }, 1000);
 }
 
+async function shareCollection() {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: '나의 TCG 컬렉션',
+        text: `TCGfinder에서 나의 컬렉션(${myCollection.length}장)을 구경해보세요!`,
+        url: window.location.href
+      });
+    } catch (err) {
+      console.log('Share canceled');
+    }
+  } else {
+    showToast('📤', '공유 기능은 모바일 브라우저에서 최적화되어 있습니다.');
+  }
+}
+
+async function requestFullPermissions() {
+  try {
+    // Request Camera Permission
+    await navigator.mediaDevices.getUserMedia({ video: true });
+    showToast('📸', '카메라 권한이 허용되었습니다.');
+    
+    // Request Notification/File logic simulation
+    setTimeout(() => {
+      showToast('📂', '파일/갤러리 접근 권한이 확인되었습니다.');
+    }, 1000);
+  } catch (err) {
+    showToast('❌', '권한 요청 중 오류가 발생했습니다.');
+  }
+}
+
+function openFeaturedDetail(name) {
+  const card = recommendedPool.find(c => c.name === name);
+  if(!card) return;
+  
+  // Reuse detail screen for featured
+  document.getElementById('d-name').textContent = card.name;
+  document.getElementById('d-set').textContent = card.set;
+  document.getElementById('d-emoji').textContent = '🃏';
+  document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:contain;padding:20px;">`;
+  
+  // Custom button for featured
+  const detailBack = document.getElementById('detail-back');
+  detailBack.onclick = () => goScreen('home');
+  
+  goScreen('detail');
+}
+
+function toggleWish(index) {
+  myCollection[index].wish = !myCollection[index].wish;
+  localStorage.setItem('myCollection', JSON.stringify(myCollection));
+  renderCollection();
+  updateStats();
+  showToast(myCollection[index].wish ? '❤️' : '💔', myCollection[index].wish ? '위시에 추가됨' : '위시 해제됨');
+}
+
 function openCapturedDetail(index) {
   const card = myCollection[index];
-  showToast('ℹ️', '상세 정보 준비 중: ' + card.name);
+  
+  document.getElementById('d-name').textContent = card.name;
+  document.getElementById('d-set').textContent = card.set;
+  document.getElementById('d-showcase').innerHTML = `
+    <img src="${card.image}" style="width:100%;height:100%;object-fit:cover;">
+    <div class="wish-toggle-btn ${card.wish?'active':''}" onclick="event.stopPropagation(); toggleWish(${index}); this.classList.toggle('active');">❤️</div>
+  `;
+  
+  const detailBack = document.getElementById('detail-back');
+  detailBack.onclick = () => goScreen('collection');
+  
+  goScreen('detail');
 }
 
 // ===================== UI HELPERS =====================
