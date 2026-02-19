@@ -475,7 +475,28 @@ function openCapturedDetail(index) {
   `;
   const detailBack = document.getElementById('detail-back');
   detailBack.onclick = () => goScreen('collection');
+
+  // 삭제 버튼 이벤트 연결
+  const deleteBtn = document.getElementById('detail-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.onclick = () => {
+      if (confirm('이 카드를 컬렉션에서 삭제하시겠습니까?')) {
+        deleteCard(index);
+      }
+    };
+  }
+
   goScreen('detail');
+}
+
+function deleteCard(index) {
+  myCollection.splice(index, 1);
+  saveUserCollection();
+  updateStats();
+  renderCollection();
+  renderRecentCards();
+  showToast('🗑️', '카드가 삭제되었습니다');
+  goScreen('collection');
 }
 
 function openFeaturedDetail(name) {
