@@ -317,12 +317,16 @@
     <div class="status-bar"><span class="real-time-clock">9:41</span><span></span></div>
     <div style="padding:12px 20px 0;">
       <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:900;">위시리스트</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:3px;">갖고 싶은 카드 모음</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:3px;">내가 찜한 카드 모음</div>
     </div>
-    <div class="wishlist-empty">
-      <div class="we-icon">♡</div>
-      <div class="we-title">아직 비어있어요</div>
-      <div class="we-sub">갖고 싶은 카드를 위시리스트에<br>추가해 보세요</div>
+    
+    <!-- Dynamic Wishlist Grid -->
+    <div class="coll-grid" id="wishlist-grid" style="padding-top:20px;"></div>
+
+    <div class="wishlist-empty" id="wishlist-empty" style="display:none;">
+      <div class="we-icon">❤️</div>
+      <div class="we-title">아직 찜한 카드가 없어요</div>
+      <div class="we-sub">컬렉션에서 하트를 눌러<br>위시리스트에 추가해 보세요</div>
       <button class="we-btn" onclick="goScreen('collection')">컬렉션 둘러보기</button>
     </div>
   </div>

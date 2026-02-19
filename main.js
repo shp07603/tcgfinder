@@ -191,6 +191,7 @@ function goScreen(name) {
   }
 
   if (name === 'collection') renderCollection();
+  if (name === 'wishlist') renderWishlist();
   if (name === 'home') {
     renderFeaturedCards();
     renderRecentCards();
@@ -199,6 +200,36 @@ function goScreen(name) {
 
   updateStats();
   previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
+}
+
+function renderWishlist() {
+  const grid = document.getElementById('wishlist-grid');
+  const empty = document.getElementById('wishlist-empty');
+  if(!grid || !empty) return;
+
+  const wished = myCollection.filter(c => c.wish);
+  
+  if(wished.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+  } else {
+    empty.style.display = 'none';
+    grid.innerHTML = wished.map(card => {
+      const realIdx = myCollection.findIndex(c => c.date === card.date);
+      return `
+        <div class="cg-card" onclick="openCapturedDetail(${realIdx})">
+          <div class="cg-bg">
+            <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+            <div class="cg-wish-indicator">❤️</div>
+          </div>
+          <div class="cg-overlay">
+            <div class="cg-name">${card.name}</div>
+            <div class="cg-rare">${card.rarity}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 let currentFilter = 'all';
@@ -496,6 +527,7 @@ function toggleWish(index) {
   myCollection[index].wish = !myCollection[index].wish;
   localStorage.setItem('myCollection', JSON.stringify(myCollection));
   renderCollection();
+  renderWishlist();
   updateStats();
   showToast(myCollection[index].wish ? '❤️' : '💔', myCollection[index].wish ? '위시에 추가됨' : '위시 해제됨');
 }
