@@ -83,8 +83,6 @@ function loadTheme() {
 
 // ===================== DYNAMIC DATA FETCHING =====================
 function fetchFeaturedCards() {
-  // Simulate fetching from web every 10 mins
-  // Shuffle and pick 4-6 cards
   const shuffled = [...recommendedPool].sort(() => 0.5 - Math.random());
   currentFeatured = shuffled.slice(0, 6);
   
@@ -99,7 +97,6 @@ function fetchFeaturedCards() {
   }
 }
 
-// Start 10-minute timer
 setInterval(fetchFeaturedCards, 10 * 60 * 1000);
 
 // ===================== CAMERA & CAPTURE =====================
@@ -298,7 +295,6 @@ function filterHome(type, el) {
     else if(type === 'sports') el.className = 'cat-tab active-soccer';
     else if(type === 'tcg') el.className = 'cat-tab active-all'; 
   }
-  // Shared state: update collection filter UI
   const collTabs = document.querySelectorAll('#filter-row .chip');
   collTabs.forEach(c => c.classList.remove('active'));
   const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
@@ -310,7 +306,6 @@ function filterColl(type, el) {
   document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
   if(el) el.classList.add('active');
   
-  // Shared state: update home filter UI
   const homeTabs = document.querySelectorAll('#home-tabs .cat-tab');
   homeTabs.forEach(t => t.className = 'cat-tab');
   const targetIdx = ['all', 'pokemon', 'sports', 'tcg'].indexOf(type);
@@ -371,26 +366,16 @@ function renderCollection() {
   grid.innerHTML = html;
 }
 
-  html += `
-    <div class="cg-add" onclick="goScreen('scan')">
-      <div class="cg-add-icon">+</div>
-      <div class="cg-add-lbl">카드 추가</div>
-    </div>
-  `;
-  grid.innerHTML = html;
-}
-
 // ===================== SCAN & AI =====================
 async function triggerScan() {
   if(scanning) return;
   scanning = true;
   
-  // Effects
   playShutterSound();
   const flash = document.getElementById('camera-flash');
   if(flash) {
     flash.classList.remove('flash-anim');
-    void flash.offsetWidth; // trigger reflow
+    void flash.offsetWidth;
     flash.classList.add('flash-anim');
   }
 
@@ -406,9 +391,8 @@ async function triggerScan() {
 
   capturedImageData = captureFrame();
   
-  // AI Simulation Result
   setTimeout(() => {
-    const pool = recommendedPool.filter(c => c.category === (Math.random() > 0.5 ? 'pokemon' : 'soccer'));
+    const pool = recommendedPool.filter(c => c.category === (Math.random() > 0.5 ? 'pokemon' : 'sports'));
     const result = pool[Math.floor(Math.random() * pool.length)];
     
     currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
@@ -422,7 +406,7 @@ async function triggerScan() {
     document.getElementById('ai-name').textContent = currentAiResult.name;
     document.getElementById('ai-set').textContent = currentAiResult.set;
     document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
-    document.getElementById('ai-cat').textContent = currentAiResult.category === 'pokemon' ? '포켓몬 TCG' : '스포츠 카드';
+    document.getElementById('ai-cat').textContent = currentAiResult.category === 'pokemon' ? '포켓몬 카드' : (currentAiResult.category === 'sports' ? '스포츠 카드' : 'TCG 카드');
     document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
 
     document.getElementById('ai-result').style.display = 'block';
@@ -430,7 +414,7 @@ async function triggerScan() {
     if(placeholder) placeholder.textContent = '✅';
     hint.textContent = '인식 완료!';
     scanning = false;
-  }, 1000); // 1.5s -> 1s for faster feel
+  }, 1000);
 }
 
 function resetScan() {
@@ -483,11 +467,8 @@ async function shareCollection() {
 
 async function requestFullPermissions() {
   try {
-    // Request Camera Permission
     await navigator.mediaDevices.getUserMedia({ video: true });
     showToast('📸', '카메라 권한이 허용되었습니다.');
-    
-    // Request Notification/File logic simulation
     setTimeout(() => {
       showToast('📂', '파일/갤러리 접근 권한이 확인되었습니다.');
     }, 1000);
@@ -500,13 +481,11 @@ function openFeaturedDetail(name) {
   const card = recommendedPool.find(c => c.name === name);
   if(!card) return;
   
-  // Reuse detail screen for featured
   document.getElementById('d-name').textContent = card.name;
   document.getElementById('d-set').textContent = card.set;
   document.getElementById('d-emoji').textContent = '🃏';
   document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:contain;padding:20px;">`;
   
-  // Custom button for featured
   const detailBack = document.getElementById('detail-back');
   detailBack.onclick = () => goScreen('home');
   
@@ -566,5 +545,5 @@ function showManual() {
 loadTheme();
 updateClock();
 setInterval(updateClock, 1000);
-fetchFeaturedCards(); // Initial fetch
+fetchFeaturedCards();
 goScreen('home');
