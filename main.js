@@ -1,13 +1,13 @@
 // ===================== RECOMMENDED CARDS POOL =====================
 const recommendedPool = [
-  { name: '피카츄 VMAX (HR)', set: '앙천의 볼트태클', rarity: 'Hyper Rare', category: 'pokemon', image: 'https://tcg.pokemon.com/assets/img/home/cards/swsh4-en-188.png', typeColor: 'var(--pokemon)' },
-  { name: '리자몽 VMAX (SSR)', set: '샤이니스타V', rarity: 'Shiny Super Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/swsh45/SV107_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'soccer', image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
-  { name: '이강인 Rookie', set: '2019 Panini Chronicles', rarity: 'Rookie Card', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '피카츄 ex (SAR)', set: '초전브레이커', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv8/132_hires.png', typeColor: 'var(--pokemon)' },
+  { name: '테라파고스 ex (SAR)', set: '스텔라미라클', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv7/124_hires.png', typeColor: 'var(--pokemon)' },
+  { name: '리자몽 ex (SAR)', set: '샤이니트레저 ex', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv4a/234_hires.png', typeColor: 'var(--pokemon)' },
   { name: '뮤 ex (SAR)', set: '포켓몬 151', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv3pt5/205_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'soccer', image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
   { name: '레쿠쟈 VMAX (SA)', set: '창공스트림', rarity: 'Special Art', category: 'pokemon', image: 'https://images.pokemontcg.io/swsh7/218_hires.png', typeColor: 'var(--pokemon)' },
-  { name: '메시 Prizm', set: '2022 World Cup', rarity: 'Gold Power', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' }
+  { name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'soccer', image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'soccer', image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '이강인 Rookie', set: '2019 Panini Chronicles', rarity: 'Rookie Card', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' }
 ];
 
 let currentFeatured = [];
