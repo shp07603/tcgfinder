@@ -614,8 +614,8 @@ function updateUserUI() {
     if (loggedIn) loggedIn.style.display = 'flex';
     if (userName) userName.textContent = currentUser.name;
     if (userEmail) userEmail.textContent = currentUser.email;
-    if (userPhoto) userPhoto.innerHTML = `<img src="${currentUser.picture}" alt="Profile">`;
-    if (headerAvatar) headerAvatar.innerHTML = `<img src="${currentUser.picture}" alt="Profile">`;
+    if (userPhoto) userPhoto.innerHTML = `<img src="${currentUser.picture}" alt="Profile" referrerpolicy="no-referrer">`;
+    if (headerAvatar) headerAvatar.innerHTML = `<img src="${currentUser.picture}" alt="Profile" referrerpolicy="no-referrer">`;
   } else {
     if (loggedOut) loggedOut.style.display = 'flex';
     if (loggedIn) loggedIn.style.display = 'none';
