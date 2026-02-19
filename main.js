@@ -50,7 +50,6 @@ const guideData = {
 function openGuide(key) {
   const guide = guideData[key];
   if(!guide) return;
-  
   document.getElementById('guide-title').textContent = guide.title;
   document.getElementById('guide-body').innerHTML = guide.body;
   goScreen('guide');
@@ -64,20 +63,36 @@ let capturedImageData = null;
 let currentAiResult = null;
 let scanning = false;
 
-// User Collection & Auth
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let myCollection = [];
 
 const defaultAvatars = ['👤', '🔥', '💧', '⚡', '🌿', '⭐', '🏆', '⚽', '🏀', '🎮', '🃏', '💎', '🦊', '🦁', '🐉'];
 let selectedAvatar = '👤';
 
+// ===================== AUDIO (SHUTTER SOUND) =====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+async function playShutterSound() {
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
+  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
 // ===================== AUTH & DATA MANAGEMENT =====================
 function loadUserData() {
   if (currentUser) {
     const collKey = `collection_${currentUser.email}`;
     myCollection = JSON.parse(localStorage.getItem(collKey)) || [];
-    
-    // 로컬에 저장된 커스텀 프로필 로드
     const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
     if (profiles[currentUser.email]) {
       currentUser.name = profiles[currentUser.email].name;
@@ -106,11 +121,7 @@ function parseJwt(token) {
 
 function handleCredentialResponse(response) {
   const user = parseJwt(response.credential);
-  currentUser = {
-    name: user.name,
-    email: user.email,
-    picture: '👤'
-  };
+  currentUser = { name: user.name, email: user.email, picture: '👤' };
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
   loadUserData();
   updateUserUI();
@@ -138,18 +149,15 @@ function openEditProfile() {
   const picker = document.getElementById('avatar-picker');
   const preview = document.getElementById('edit-preview-icon');
   const input = document.getElementById('edit-nickname');
-
   input.value = currentUser.name;
   selectedAvatar = currentUser.picture || '👤';
   preview.textContent = selectedAvatar;
-
   picker.innerHTML = defaultAvatars.map(av => `
     <div class="avatar-option" onclick="selectAvatar('${av}', this)" 
          style="cursor:pointer; font-size:24px; padding:8px; border-radius:12px; text-align:center; transition:0.2s; ${av === selectedAvatar ? 'background:var(--surface3); border:1px solid var(--gold);' : ''}">
       ${av}
     </div>
   `).join('');
-
   modal.style.display = 'flex';
 }
 
@@ -171,15 +179,12 @@ function closeEditProfile() {
 function saveProfile() {
   const newName = document.getElementById('edit-nickname').value.trim();
   if (!newName) return showToast('⚠️', '닉네임을 입력해주세요');
-
   currentUser.name = newName;
   currentUser.picture = selectedAvatar;
-
   const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
   profiles[currentUser.email] = { name: newName, picture: selectedAvatar };
   localStorage.setItem('userProfiles', JSON.stringify(profiles));
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
   updateUserUI();
   closeEditProfile();
   showToast('✅', '프로필이 변경되었습니다');
@@ -192,13 +197,11 @@ function updateUserUI() {
   const userName = document.getElementById('user-name');
   const userEmail = document.getElementById('user-email');
   const userPhoto = document.getElementById('user-photo');
-
   if (currentUser) {
     if (loggedOut) loggedOut.style.display = 'none';
     if (loggedIn) loggedIn.style.display = 'flex';
     if (userName) userName.textContent = currentUser.name;
     if (userEmail) userEmail.textContent = currentUser.email;
-    
     const av = currentUser.picture || '👤';
     if (userPhoto) userPhoto.textContent = av;
     if (headerAvatar) headerAvatar.textContent = av;
@@ -228,7 +231,6 @@ function loadTheme() {
 function renderFeaturedCards() {
   const grid = document.querySelector('#screen-home .card-grid');
   if(!grid) return;
-
   grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
     <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
       <div class="c-img" style="background: var(--surface2)">
@@ -246,36 +248,17 @@ function renderFeaturedCards() {
 function fetchFeaturedCards() {
   const shuffled = [...recommendedPool].sort(() => 0.5 - Math.random());
   currentFeatured = shuffled.slice(0, 6);
-  
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
   const timeEl = document.getElementById('featured-update-time');
   if(timeEl) timeEl.textContent = `마지막 업데이트: ${timeStr} (10분마다 갱신됨)`;
-  
   renderFeaturedCards();
-  if(document.getElementById('screen-featured').classList.contains('active')) {
-    renderFullFeaturedGrid();
-  }
+  if(document.getElementById('screen-featured').classList.contains('active')) renderFullFeaturedGrid();
 }
 
 setInterval(fetchFeaturedCards, 10 * 60 * 1000);
 
 // ===================== CAMERA & CAPTURE =====================
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playShutterSound() {
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  oscillator.type = 'square';
-  oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
-  gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  oscillator.start();
-  oscillator.stop(audioCtx.currentTime + 0.1);
-}
-
 async function initCamera() {
   const video = document.getElementById('video-stream');
   try {
@@ -312,15 +295,12 @@ function goScreen(name) {
   const target = document.getElementById('screen-' + name);
   if(!target) return;
   target.classList.add('active');
-
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const nb = document.getElementById('nav-' + name);
   if(nb) nb.classList.add('active');
-
   const nav = document.getElementById('nav');
   const noNavScreens = ['detail', 'featured', 'guide', 'about', 'privacy'];
   nav.style.display = noNavScreens.includes(name) ? 'none' : 'flex';
-
   if (name === 'scan') {
     if (!currentUser) {
       showToast('🔑', '로그인이 필요한 기능입니다');
@@ -332,7 +312,6 @@ function goScreen(name) {
   } else {
     stopCamera();
   }
-
   if (name === 'collection') renderCollection();
   if (name === 'wishlist') renderWishlist();
   if (name === 'home') {
@@ -340,7 +319,6 @@ function goScreen(name) {
     renderRecentCards();
   }
   if (name === 'featured') renderFullFeaturedGrid();
-
   updateStats();
   previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
 }
@@ -352,16 +330,13 @@ function updateStats() {
   const sportsCount = myCollection.filter(c => c.category === 'sports').length;
   const tcgCount = myCollection.filter(c => c.category === 'tcg').length;
   const wishCount = myCollection.filter(c => c.wish).length;
-
   const totalEl = document.getElementById('total-count');
   if(totalEl) totalEl.textContent = totalCount;
   const collSub = document.getElementById('coll-sub');
   if(collSub) collSub.textContent = `${totalCount}장 보유중`;
-  
   document.getElementById('stat-pokemon').textContent = `🔴 ${pokeCount}`;
   document.getElementById('stat-sports').textContent = `⚽ ${sportsCount}`;
   document.getElementById('stat-tcg').textContent = `🃏 ${tcgCount}`;
-
   document.getElementById('prof-total').textContent = totalCount;
   document.getElementById('prof-wish').textContent = wishCount;
 }
@@ -369,13 +344,11 @@ function updateStats() {
 function renderCollection() {
   const grid = document.getElementById('coll-grid');
   if(!grid) return;
-  
   let filtered = [...myCollection];
   if(currentFilter !== 'all') filtered = filtered.filter(c => c.category === currentFilter);
   if(currentSort === 'newest') filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
   else if(currentSort === 'oldest') filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
   else if(currentSort === 'wishlist') filtered = filtered.filter(c => c.wish);
-
   let html = filtered.map((card) => {
     const realIdx = myCollection.findIndex(c => c.date === card.date);
     return `
@@ -384,14 +357,10 @@ function renderCollection() {
           <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
           ${card.wish ? '<div class="cg-wish-indicator">❤️</div>' : ''}
         </div>
-        <div class="cg-overlay">
-          <div class="cg-name">${card.name}</div>
-          <div class="cg-rare">${card.rarity}</div>
-        </div>
+        <div class="cg-overlay"><div class="cg-name">${card.name}</div><div class="cg-rare">${card.rarity}</div></div>
       </div>
     `;
   }).join('');
-
   html += `<div class="cg-add" onclick="goScreen('scan')"><div class="cg-add-icon">+</div><div class="cg-add-lbl">카드 추가</div></div>`;
   grid.innerHTML = html;
 }
