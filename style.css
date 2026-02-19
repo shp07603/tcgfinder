@@ -284,14 +284,41 @@ html, body {
 .back-btn:active { background: var(--surface2); }
 .screen-title { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; }
 
-.viewfinder {
+.viewfinder-container {
+  position: relative;
   margin: 0 20px;
+}
+
+.viewfinder {
   aspect-ratio: 3/4; max-height: 340px;
   border-radius: var(--radius); overflow: hidden; position: relative;
   background: radial-gradient(circle at 50% 60%, #12121e 0%, #090910 100%);
   border: 1px solid var(--border2);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
+}
+
+#camera-flash {
+  position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 10;
+}
+.flash-anim { animation: flash-trigger 0.4s ease-out; }
+@keyframes flash-trigger {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+.shutter-wrap {
+  display: flex; justify-content: center; padding: 20px 0 10px;
+}
+.shutter-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 4px solid #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform 0.1s;
+}
+.shutter-btn:active { transform: scale(0.9); }
+.shutter-inner {
+  width: 58px; height: 58px; border-radius: 50%; background: #fff;
+  border: 2px solid #000;
 }
 .vf-corner {
   position: absolute; width: 36px; height: 36px;

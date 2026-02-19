@@ -94,6 +94,25 @@ function fetchFeaturedCards() {
 setInterval(fetchFeaturedCards, 10 * 60 * 1000);
 
 // ===================== CAMERA & CAPTURE =====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playShutterSound() {
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.05);
+  
+  gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
 async function initCamera() {
   const video = document.getElementById('video-stream');
   const placeholder = document.querySelector('.vf-placeholder');
@@ -295,6 +314,15 @@ async function triggerScan() {
   if(scanning) return;
   scanning = true;
   
+  // Effects
+  playShutterSound();
+  const flash = document.getElementById('camera-flash');
+  if(flash) {
+    flash.classList.remove('flash-anim');
+    void flash.offsetWidth; // trigger reflow
+    flash.classList.add('flash-anim');
+  }
+
   const vf = document.getElementById('viewfinder');
   const placeholder = vf.querySelector('.vf-placeholder');
   const hint = vf.querySelector('.vf-hint');
@@ -315,8 +343,10 @@ async function triggerScan() {
     currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
 
     const thumb = document.getElementById('ai-thumb');
-    thumb.className = 'ai-thumb bg-holo';
-    thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    if(thumb) {
+      thumb.className = 'ai-thumb bg-holo';
+      thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    }
 
     document.getElementById('ai-name').textContent = currentAiResult.name;
     document.getElementById('ai-set').textContent = currentAiResult.set;
@@ -329,7 +359,7 @@ async function triggerScan() {
     if(placeholder) placeholder.textContent = '✅';
     hint.textContent = '인식 완료!';
     scanning = false;
-  }, 1500);
+  }, 1000); // 1.5s -> 1s for faster feel
 }
 
 function resetScan() {

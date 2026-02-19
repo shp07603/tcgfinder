@@ -127,16 +127,25 @@
       <div class="screen-title">카드 스캔</div>
     </div>
 
-    <div class="viewfinder" id="viewfinder" onclick="triggerScan()">
-      <video id="video-stream" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0; z-index:0; display:none;"></video>
-      <canvas id="capture-canvas" style="display:none;"></canvas>
-      <div class="vf-corner vfc-tl"></div>
-      <div class="vf-corner vfc-tr"></div>
-      <div class="vf-corner vfc-bl"></div>
-      <div class="vf-corner vfc-br"></div>
-      <div class="scan-line"></div>
-      <div class="vf-placeholder">🃏</div>
-      <div class="vf-hint">탭하여 카드를 스캔하세요</div>
+    <div class="viewfinder-container">
+      <div class="viewfinder" id="viewfinder" onclick="triggerScan()">
+        <video id="video-stream" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0; z-index:0; display:none;"></video>
+        <canvas id="capture-canvas" style="display:none;"></canvas>
+        <div class="vf-corner vfc-tl"></div>
+        <div class="vf-corner vfc-tr"></div>
+        <div class="vf-corner vfc-bl"></div>
+        <div class="vf-corner vfc-br"></div>
+        <div class="scan-line"></div>
+        <div class="vf-placeholder">🃏</div>
+        <div class="vf-hint">탭하여 카드를 스캔하세요</div>
+        <div id="camera-flash"></div>
+      </div>
+      
+      <div class="shutter-wrap">
+        <div class="shutter-btn" onclick="triggerScan()">
+          <div class="shutter-inner"></div>
+        </div>
+      </div>
     </div>
 
     <div class="scan-opts">
