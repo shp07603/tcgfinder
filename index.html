@@ -7,6 +7,7 @@
 <meta name="description" content="포켓몬 TCG, 스포츠 카드 컬렉터를 위한 최적의 도구. AI 스캔으로 간편하게 카드를 등록하고 나만의 컬렉션을 관리하세요.">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -20,7 +21,7 @@
     </div>
     <div class="home-header fade-up">
       <div class="logo">TCGfinder</div>
-      <div class="avatar-btn" onclick="goScreen('profile')">👤</div>
+      <div class="avatar-btn" onclick="goScreen('profile')" id="header-avatar">👤</div>
     </div>
 
     <div class="hero fade-up">
@@ -334,11 +335,24 @@
   <!-- ========== PROFILE ========== -->
   <div class="screen" id="screen-profile">
     <div class="status-bar"><span class="real-time-clock">9:41</span><span></span></div>
-    <div class="profile-hero">
+    
+    <!-- Profile Header (Logged Out) -->
+    <div id="profile-logged-out" class="profile-hero">
       <div class="profile-avatar">👤</div>
-      <div class="profile-name">나의 컬렉션</div>
-      <div class="profile-since">COLLECTOR SINCE 2024</div>
+      <div class="profile-name">로그인이 필요합니다</div>
+      <div style="margin-top: 15px; display: flex; justify-content: center;">
+        <div id="google-login-btn"></div>
+      </div>
     </div>
+
+    <!-- Profile Header (Logged In) -->
+    <div id="profile-logged-in" class="profile-hero" style="display: none;">
+      <div class="profile-avatar" id="user-photo">👤</div>
+      <div class="profile-name" id="user-name">나의 컬렉션</div>
+      <div class="profile-since" id="user-email">COLLECTOR SINCE 2024</div>
+      <div style="margin-top: 10px; font-size: 11px; color: var(--text3); text-decoration: underline; cursor: pointer;" onclick="handleLogout()">로그아웃</div>
+    </div>
+
     <div class="profile-stats">
       <div class="ps-item fade-up">
         <div class="ps-val" id="prof-total">0</div>

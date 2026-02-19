@@ -67,6 +67,9 @@ let scanning = false;
 // User Collection State
 let myCollection = JSON.parse(localStorage.getItem('myCollection')) || [];
 
+// User Auth State
+let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+
 // ===================== THEME =====================
 function toggleTheme() {
   const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -244,6 +247,9 @@ function updateStats() {
 
   const totalEl = document.getElementById('total-count');
   if(totalEl) totalEl.textContent = totalCount;
+
+  const collSub = document.getElementById('coll-sub');
+  if(collSub) collSub.textContent = `${totalCount}장 보유중`;
   
   const statPoke = document.getElementById('stat-pokemon');
   if(statPoke) statPoke.textContent = `🔴 ${pokeCount}`;
@@ -571,6 +577,77 @@ function updateClock() {
 
 function showManual() {
   showToast('✏️', '직접 입력 기능은 개발 중이에요!');
+}
+
+// ===================== AUTH & GOOGLE LOGIN =====================
+function parseJwt(token) {
+  var base64Url = token.split('.')[1];
+  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+  return JSON.parse(jsonPayload);
+}
+
+function handleCredentialResponse(response) {
+  const user = parseJwt(response.credential);
+  currentUser = {
+    name: user.name,
+    email: user.email,
+    picture: user.picture
+  };
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  updateUserUI();
+  showToast('👋', `${currentUser.name}님, 환영합니다!`);
+}
+
+function updateUserUI() {
+  const loggedOut = document.getElementById('profile-logged-out');
+  const loggedIn = document.getElementById('profile-logged-in');
+  const headerAvatar = document.getElementById('header-avatar');
+  const userName = document.getElementById('user-name');
+  const userEmail = document.getElementById('user-email');
+  const userPhoto = document.getElementById('user-photo');
+
+  if (currentUser) {
+    if (loggedOut) loggedOut.style.display = 'none';
+    if (loggedIn) loggedIn.style.display = 'flex';
+    if (userName) userName.textContent = currentUser.name;
+    if (userEmail) userEmail.textContent = currentUser.email;
+    if (userPhoto) userPhoto.innerHTML = `<img src="${currentUser.picture}" alt="Profile">`;
+    if (headerAvatar) headerAvatar.innerHTML = `<img src="${currentUser.picture}" alt="Profile">`;
+  } else {
+    if (loggedOut) loggedOut.style.display = 'flex';
+    if (loggedIn) loggedIn.style.display = 'none';
+    if (headerAvatar) headerAvatar.textContent = '👤';
+    renderGoogleButton();
+  }
+}
+
+function handleLogout() {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  updateUserUI();
+  showToast('🔒', '로그아웃 되었습니다');
+}
+
+function renderGoogleButton() {
+  const btnContainer = document.getElementById("google-login-btn");
+  if (!btnContainer || typeof google === 'undefined') return;
+  google.accounts.id.renderButton(
+    btnContainer,
+    { theme: "outline", size: "large", width: 240, shape: "pill" }
+  );
+}
+
+window.onload = function () {
+  if (typeof google !== 'undefined') {
+    google.accounts.id.initialize({
+      client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", // Replace with actual Client ID
+      callback: handleCredentialResponse
+    });
+  }
+  updateUserUI();
 }
 
 // Initial load
