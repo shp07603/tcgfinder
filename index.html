@@ -77,50 +77,26 @@
 
     <div class="section-hdr fade-up">
       <div class="section-title">주목할 카드</div>
-      <div class="see-all" onclick="goScreen('collection')">더보기 →</div>
+      <div class="see-all" onclick="goScreen('featured')">더보기 →</div>
     </div>
     <div class="card-grid fade-up">
-      <div class="c-card" onclick="openDetail('charizard')">
-        <div class="c-img bg-holo">
-          <div class="holo-shine"></div>
-          ⚡
-          <div class="rarity-badge rb-ultra">ULTRA</div>
-        </div>
-        <div class="c-info">
-          <div class="c-name">리자몽 VMAX</div>
-          <div class="c-meta"><div class="type-dot" style="background:var(--pokemon)"></div>Fusion Strike</div>
-        </div>
-      </div>
-      <div class="c-card" onclick="openDetail('mbappe')">
-        <div class="c-img bg-soccer">
-          ⚽
-          <div class="rarity-badge rb-rare">PRIZM</div>
-        </div>
-        <div class="c-info">
-          <div class="c-name">Mbappé</div>
-          <div class="c-meta"><div class="type-dot" style="background:var(--soccer)"></div>2024 Topps</div>
-        </div>
-      </div>
-      <div class="c-card" onclick="openDetail('pikachu')">
-        <div class="c-img bg-gold">
-          ⭐
-          <div class="rarity-badge rb-rare">GOLD</div>
-        </div>
-        <div class="c-info">
-          <div class="c-name">피카츄 ex</div>
-          <div class="c-meta"><div class="type-dot" style="background:var(--pokemon)"></div>Promo</div>
-        </div>
-      </div>
-      <div class="c-card" onclick="openDetail('pedri')">
-        <div class="c-img bg-soccer">
-          🌀
-          <div class="rarity-badge rb-common">RARE</div>
-        </div>
-        <div class="c-info">
-          <div class="c-name">Pedri</div>
-          <div class="c-meta"><div class="type-dot" style="background:var(--soccer)"></div>Panini 2024</div>
-        </div>
-      </div>
+      <!-- Dynamic Recommended Cards -->
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== FEATURED (RECOMMENDED) ========== -->
+  <div class="screen" id="screen-featured">
+    <div class="status-bar"><span>9:41</span><span></span></div>
+    <div class="scan-header">
+      <div class="back-btn" onclick="goScreen('home')">←</div>
+      <div class="screen-title">추천 카드</div>
+    </div>
+    <div style="padding: 0 20px 10px; font-size: 12px; color: var(--text3);" id="featured-update-time">
+      마지막 업데이트: 09:41 (10분마다 갱신됨)
+    </div>
+    <div class="card-grid" id="featured-full-grid">
+      <!-- Dynamic Full Recommended List -->
     </div>
     <div style="height:20px"></div>
   </div>

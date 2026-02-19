@@ -1,50 +1,24 @@
-// ===================== CURATED FEATURED CARDS =====================
-const featuredCards = [
-  {
-    name: 'Pikachu VMAX',
-    set: 'Celebrations',
-    rarity: 'Ultra Rare',
-    category: 'pokemon',
-    image: 'https://images.pokemontcg.io/cel25/5_hires.png',
-    typeColor: 'var(--pokemon)'
-  },
-  {
-    name: 'Lionel Messi',
-    set: '2022 Panini Prizm',
-    rarity: 'Gold Prizm',
-    category: 'soccer',
-    image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg',
-    typeColor: 'var(--soccer)'
-  },
-  {
-    name: 'Charizard ex',
-    set: 'Scarlet & Violet-151',
-    rarity: 'Special Illustration Rare',
-    category: 'pokemon',
-    image: 'https://images.pokemontcg.io/sv3pt5/199_hires.png',
-    typeColor: 'var(--pokemon)'
-  },
-  {
-    name: 'Erling Haaland',
-    set: '2023 Topps Chrome',
-    rarity: 'Superfractor',
-    category: 'soccer',
-    image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg',
-    typeColor: 'var(--soccer)'
-  }
+// ===================== RECOMMENDED CARDS POOL =====================
+const recommendedPool = [
+  { name: '피카츄 VMAX (HR)', set: '앙천의 볼트태클', rarity: 'Hyper Rare', category: 'pokemon', image: 'https://tcg.pokemon.com/assets/img/home/cards/swsh4-en-188.png', typeColor: 'var(--pokemon)' },
+  { name: '리자몽 VMAX (SSR)', set: '샤이니스타V', rarity: 'Shiny Super Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/swsh45/SV107_hires.png', typeColor: 'var(--pokemon)' },
+  { name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'soccer', image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '이강인 Rookie', set: '2019 Panini Chronicles', rarity: 'Rookie Card', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '뮤 ex (SAR)', set: '포켓몬 151', rarity: 'Special Art Rare', category: 'pokemon', image: 'https://images.pokemontcg.io/sv3pt5/205_hires.png', typeColor: 'var(--pokemon)' },
+  { name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'soccer', image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' },
+  { name: '레쿠쟈 VMAX (SA)', set: '창공스트림', rarity: 'Special Art', category: 'pokemon', image: 'https://images.pokemontcg.io/swsh7/218_hires.png', typeColor: 'var(--pokemon)' },
+  { name: '메시 Prizm', set: '2022 World Cup', rarity: 'Gold Power', category: 'soccer', image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)' }
 ];
 
-// ===================== SCAN DATA =====================
-const scanResults = [
-  { id: 'charizard', name:'리자몽 VMAX', set:'Fusion Strike', rarity:'252/264 · Ultra Rare', cat:'포켓몬 TCG', emoji:'⚡', bg:'bg-holo', conf:'98.4', category: 'pokemon' },
-  { id: 'mbappe', name:'음바페 Gold Prizm', set:'2024 Topps Chrome', rarity:'Gold · /50', cat:'축구 카드', emoji:'⚽', bg:'bg-soccer', conf:'96.1', category: 'soccer' },
-];
+let currentFeatured = [];
 
+// ===================== APP STATE =====================
 let scanIdx = 0;
 let previousScreen = 'home';
 let cameraStream = null;
 let capturedImageData = null;
 let currentAiResult = null;
+let scanning = false;
 
 // User Collection State
 let myCollection = JSON.parse(localStorage.getItem('myCollection')) || [];
@@ -62,6 +36,27 @@ function loadTheme() {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
+
+// ===================== DYNAMIC DATA FETCHING =====================
+function fetchFeaturedCards() {
+  // Simulate fetching from web every 10 mins
+  // Shuffle and pick 4-6 cards
+  const shuffled = [...recommendedPool].sort(() => 0.5 - Math.random());
+  currentFeatured = shuffled.slice(0, 6);
+  
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  const timeEl = document.getElementById('featured-update-time');
+  if(timeEl) timeEl.textContent = `마지막 업데이트: ${timeStr} (10분마다 갱신됨)`;
+  
+  renderFeaturedCards();
+  if(document.getElementById('screen-featured').classList.contains('active')) {
+    renderFullFeaturedGrid();
+  }
+}
+
+// Start 10-minute timer
+setInterval(fetchFeaturedCards, 10 * 60 * 1000);
 
 // ===================== CAMERA & CAPTURE =====================
 async function initCamera() {
@@ -113,17 +108,6 @@ function captureFrame() {
   return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-// ===================== VISION AI (PLACEHOLDER) =====================
-async function analyzeImageWithAI(imageData) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const result = scanResults[scanIdx % scanResults.length];
-      scanIdx++;
-      resolve(result);
-    }, 1500);
-  });
-}
-
 // ===================== NAVIGATION =====================
 function goScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -136,7 +120,7 @@ function goScreen(name) {
   if(nb) nb.classList.add('active');
 
   const nav = document.getElementById('nav');
-  nav.style.display = (name === 'detail') ? 'none' : 'flex';
+  nav.style.display = (name === 'detail' || name === 'featured') ? 'none' : 'flex';
 
   if (name === 'scan') {
     resetScan();
@@ -145,17 +129,15 @@ function goScreen(name) {
     stopCamera();
   }
 
-  if (name === 'collection') {
-    renderCollection();
-  }
-
+  if (name === 'collection') renderCollection();
   if (name === 'home') {
     renderFeaturedCards();
     renderRecentCards();
   }
+  if (name === 'featured') renderFullFeaturedGrid();
 
   updateStats();
-  previousScreen = name !== 'detail' ? name : previousScreen;
+  previousScreen = (name !== 'detail' && name !== 'featured') ? name : previousScreen;
 }
 
 function updateStats() {
@@ -164,9 +146,7 @@ function updateStats() {
   const soccerCount = myCollection.filter(c => c.category === 'soccer').length;
   const rareCount = myCollection.filter(c => c.rarity && c.rarity.toLowerCase().includes('rare')).length;
 
-  // Home Screen Stats
-  const totalEl = document.getElementById('total-count');
-  if(totalEl) totalEl.textContent = totalCount;
+  document.getElementById('total-count').textContent = totalCount;
   
   const heroPills = document.querySelectorAll('.hero-pill .hp-val');
   if(heroPills.length >= 3) {
@@ -182,7 +162,6 @@ function updateStats() {
     catTabs[2].textContent = `⚽ 축구 ${soccerCount}`;
   }
 
-  // Collection Screen Subtitle
   const collSub = document.getElementById('coll-sub');
   if(collSub) collSub.textContent = totalCount + '장 보유중';
 
@@ -195,12 +174,31 @@ function updateStats() {
   }
 }
 
-// ===================== RENDER HOME COMPONENTS =====================
+// ===================== RENDER COMPONENTS =====================
 function renderFeaturedCards() {
   const grid = document.querySelector('#screen-home .card-grid');
   if(!grid) return;
 
-  grid.innerHTML = featuredCards.map(card => `
+  // Show top 4 on home
+  grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
+    <div class="c-card" onclick="showToast('ℹ️', '추천 카드 상세 정보는 준비 중입니다')">
+      <div class="c-img" style="background: var(--surface2)">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
+        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
+      </div>
+      <div class="c-info">
+        <div class="c-name">${card.name}</div>
+        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderFullFeaturedGrid() {
+  const grid = document.getElementById('featured-full-grid');
+  if(!grid) return;
+
+  grid.innerHTML = currentFeatured.map(card => `
     <div class="c-card" onclick="showToast('ℹ️', '추천 카드 상세 정보는 준비 중입니다')">
       <div class="c-img" style="background: var(--surface2)">
         <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
@@ -223,9 +221,7 @@ function renderRecentCards() {
     return;
   }
 
-  // Show last 5 added cards
-  const recent = myCollection.slice(0, 5);
-  scroll.innerHTML = recent.map((card, index) => `
+  scroll.innerHTML = myCollection.slice(0, 5).map((card, index) => `
     <div class="r-card" onclick="openCapturedDetail(${index})">
       <div class="r-card-img" style="background: var(--surface2)">
         <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
@@ -235,7 +231,30 @@ function renderRecentCards() {
   `).join('');
 }
 
-// ===================== SCAN & COLLECTION =====================
+function renderCollection() {
+  const grid = document.getElementById('coll-grid');
+  let html = myCollection.map((card, index) => `
+    <div class="cg-card" onclick="openCapturedDetail(${index})">
+      <div class="cg-bg">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+      </div>
+      <div class="cg-overlay">
+        <div class="cg-name">${card.name}</div>
+        <div class="cg-rare">${card.rarity}</div>
+      </div>
+    </div>
+  `).join('');
+
+  html += `
+    <div class="cg-add" onclick="goScreen('scan')">
+      <div class="cg-add-icon">+</div>
+      <div class="cg-add-lbl">카드 추가</div>
+    </div>
+  `;
+  grid.innerHTML = html;
+}
+
+// ===================== SCAN & AI =====================
 async function triggerScan() {
   if(scanning) return;
   scanning = true;
@@ -251,24 +270,30 @@ async function triggerScan() {
   hint.textContent = 'AI가 이미지 분석 중...';
 
   capturedImageData = captureFrame();
-  const result = await analyzeImageWithAI(capturedImageData);
-  currentAiResult = result;
+  
+  // AI Simulation Result
+  setTimeout(() => {
+    const pool = recommendedPool.filter(c => c.category === (Math.random() > 0.5 ? 'pokemon' : 'soccer'));
+    const result = pool[Math.floor(Math.random() * pool.length)];
+    
+    currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
 
-  const thumb = document.getElementById('ai-thumb');
-  thumb.className = 'ai-thumb ' + result.bg;
-  thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    const thumb = document.getElementById('ai-thumb');
+    thumb.className = 'ai-thumb bg-holo';
+    thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
 
-  document.getElementById('ai-name').textContent = result.name;
-  document.getElementById('ai-set').textContent = result.set;
-  document.getElementById('ai-rarity').textContent = result.rarity;
-  document.getElementById('ai-cat').textContent = result.cat;
-  document.getElementById('ai-confidence').textContent = result.conf + '% 신뢰도';
+    document.getElementById('ai-name').textContent = currentAiResult.name;
+    document.getElementById('ai-set').textContent = currentAiResult.set;
+    document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
+    document.getElementById('ai-cat').textContent = currentAiResult.category === 'pokemon' ? '포켓몬 TCG' : '스포츠 카드';
+    document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
 
-  document.getElementById('ai-result').style.display = 'block';
+    document.getElementById('ai-result').style.display = 'block';
 
-  if(placeholder) placeholder.textContent = '✅';
-  hint.textContent = '인식 완료!';
-  scanning = false;
+    if(placeholder) placeholder.textContent = '✅';
+    hint.textContent = '인식 완료!';
+    scanning = false;
+  }, 1500);
 }
 
 function resetScan() {
@@ -303,57 +328,20 @@ function addToCollection() {
   setTimeout(() => { goScreen('collection'); }, 1000);
 }
 
-function renderCollection() {
-  const grid = document.getElementById('coll-grid');
-  let html = '';
-  
-  myCollection.forEach((card, index) => {
-    html += `
-      <div class="cg-card" onclick="openCapturedDetail(${index})">
-        <div class="cg-bg">
-          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
-        </div>
-        <div class="cg-overlay">
-          <div class="cg-name">${card.name}</div>
-          <div class="cg-rare">${card.rarity}</div>
-        </div>
-      </div>
-    `;
-  });
-
-  html += `
-    <div class="cg-add" onclick="goScreen('scan')">
-      <div class="cg-add-icon">+</div>
-      <div class="cg-add-lbl">카드 추가</div>
-    </div>
-  `;
-
-  grid.innerHTML = html;
-}
-
 function openCapturedDetail(index) {
   const card = myCollection[index];
   showToast('ℹ️', '상세 정보 준비 중: ' + card.name);
 }
 
-function showManual() {
-  showToast('✏️', '직접 입력 기능은 개발 중이에요!');
-}
-
-// ===================== FILTERS & TOAST & CLOCK =====================
-let scanning = false;
+// ===================== UI HELPERS =====================
 let toastTimer;
 function showToast(icon, msg) {
   clearTimeout(toastTimer);
-  const toastIcon = document.getElementById('toast-icon');
-  const toastMsg = document.getElementById('toast-msg');
-  if(toastIcon) toastIcon.textContent = icon;
-  if(toastMsg) toastMsg.textContent = msg;
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent = msg;
   const t = document.getElementById('toast');
-  if(t) {
-    t.classList.add('show');
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
-  }
+  t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 function filterHome(type, el) {
@@ -384,14 +372,13 @@ function updateClock() {
   document.querySelectorAll('#clock,#clock2').forEach(el => { if(el) el.textContent = time; });
 }
 
+function showManual() {
+  showToast('✏️', '직접 입력 기능은 개발 중이에요!');
+}
+
 // Initial load
 loadTheme();
 updateClock();
 setInterval(updateClock, 10000);
+fetchFeaturedCards(); // Initial fetch
 goScreen('home');
-
-// Detail screen helper
-function openDetail(cardId) {
-  // Can be expanded to use myCollection or featuredCards
-  showToast('ℹ️', '상세 정보 준비 중입니다');
-}
