@@ -1,5 +1,5 @@
 // ===================== APP STATE =====================
-const GEMINI_API_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8"; // 제공된 API 키 적용
+const GEMINI_API_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8";
 let previousScreen = 'home';
 let cameraStream = null;
 let capturedImageData = null;
@@ -37,21 +37,19 @@ async function playShutterSound() {
 // ===================== REAL AI: GEMINI API =====================
 async function callGeminiAI(base64Image) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  
-  // 데이터에서 "data:image/jpeg;base64," 부분을 제거
   const base64Data = base64Image.split(',')[1];
 
   const prompt = `Identify this Trading Card Game (TCG) or Sports card from the image. 
-  Return ONLY a valid JSON object with the following fields:
-  - name: Card name in Korean (e.g., "리자몽 ex")
-  - set: Set name or series in Korean (e.g., "샤이니트레저 ex")
-  - rarity: Rarity in English (e.g., "Ultra Rare")
-  - category: One of ['pokemon', 'sports', 'tcg']
-  - hp: Health points as a number (if exists, else null)
-  - attacks: Array of objects {name, cost, desc, dmg} (all in Korean)
-  - stats: Object of other key-value pairs like {stage, weakness, retreat}
+  Extract the following data into a JSON object in KOREAN:
+  - name: Card name (KO)
+  - set: Series/Set name (KO)
+  - rarity: Rarity (EN)
+  - category: 'pokemon', 'sports', or 'tcg'
+  - hp: Number (if exists)
+  - attacks: Array of {name, cost, desc, dmg} (All KO)
+  - stats: Object of other details (KO)
   
-  Return ONLY the JSON code block, nothing else.`;
+  IMPORTANT: Return ONLY the valid JSON object. No explanation, no markdown markers.`;
 
   try {
     const response = await fetch(url, {
@@ -63,23 +61,39 @@ async function callGeminiAI(base64Image) {
             { text: prompt },
             { inline_data: { mime_type: "image/jpeg", data: base64Data } }
           ]
-        }]
+        }],
+        generationConfig: {
+          response_mime_type: "application/json"
+        }
       })
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("API Error Response:", errorData);
+      throw new Error(`API_FAIL_${response.status}`);
+    }
+
     const data = await response.json();
+    console.log("Raw AI Data:", data);
+
+    if (!data.candidates || !data.candidates[0].content) {
+      throw new Error("EMPTY_RESPONSE");
+    }
+
     let text = data.candidates[0].content.parts[0].text;
     
-    // JSON 부분만 추출 (```json ... ``` 또는 그냥 { ... })
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    } else {
-      throw new Error("Invalid AI Response Format");
+    // JSON 파싱 시도 (Flash 모델의 JSON 모드 활용)
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      throw new Error("PARSE_ERROR");
     }
   } catch (error) {
-    console.error("AI Scan Error:", error);
-    return null;
+    console.error("AI Scan Error Details:", error);
+    return { error: error.message };
   }
 }
 
@@ -250,7 +264,7 @@ async function initCamera() {
   const video = document.getElementById('video-stream');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }, 
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, 
       audio: false 
     });
     cameraStream = stream;
@@ -271,11 +285,10 @@ function captureFrame() {
   const canvas = document.getElementById('capture-canvas');
   if (!video || !canvas) return null;
   const context = canvas.getContext('2d');
-  // 정방형 혹은 카드 비율에 맞게 캡처
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.8);
+  return canvas.toDataURL('image/jpeg', 0.9); // 고품질 캡처
 }
 
 // ===================== CARD DETAIL VIEW =====================
@@ -338,15 +351,9 @@ function deleteCard(index) {
 
 function updateStats() {
   const totalCount = myCollection.length;
-  const pokeCount = myCollection.filter(c => c.category === 'pokemon').length;
-  const sportsCount = myCollection.filter(c => c.category === 'sports').length;
   const wishCount = myCollection.filter(c => c.wish).length;
-  const totalEl = document.getElementById('total-count');
-  if(totalEl) totalEl.textContent = totalCount;
-  const collSub = document.getElementById('coll-sub');
-  if(collSub) collSub.textContent = `${totalCount}장 보유중`;
-  document.getElementById('stat-pokemon').textContent = `🔴 ${pokeCount}`;
-  document.getElementById('stat-sports').textContent = `⚽ ${sportsCount}`;
+  document.getElementById('total-count').textContent = totalCount;
+  document.getElementById('coll-sub').textContent = `${totalCount}장 보유중`;
   document.getElementById('prof-total').textContent = totalCount;
   document.getElementById('prof-wish').textContent = wishCount;
 }
@@ -443,11 +450,11 @@ async function triggerScan() {
     setTimeout(() => flash.classList.remove('flash-anim'), 400);
   }
 
-  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
+  showToast('🔍', 'AI가 분석 중입니다 (10~15초 소요)...');
 
   const aiResult = await callGeminiAI(capturedImageData);
   
-  if (aiResult) {
+  if (aiResult && !aiResult.error) {
     currentAiResult = { ...aiResult, conf: (95 + Math.random() * 4).toFixed(1) };
     document.getElementById('ai-thumb').innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
     document.getElementById('ai-name').textContent = currentAiResult.name;
@@ -456,8 +463,11 @@ async function triggerScan() {
     document.getElementById('ai-cat').textContent = currentAiResult.category;
     document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
     document.getElementById('ai-result').style.display = 'block';
+    showToast('✨', '인식에 성공했습니다!');
   } else {
-    showToast('❌', '카드를 인식하지 못했습니다. 다시 촬영해 주세요.');
+    let msg = '인식에 실패했습니다. 다시 촬영해 주세요.';
+    if (aiResult && aiResult.error && aiResult.error.includes('API_FAIL_429')) msg = '사용량이 초과되었습니다. 잠시 후 시도하세요.';
+    showToast('❌', msg);
   }
   scanning = false;
 }
@@ -498,51 +508,6 @@ function updateClock() {
   document.querySelectorAll('.real-time-clock').forEach(el => {
     el.textContent = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
   });
-}
-
-function openEditProfile() {
-  if (!currentUser) return;
-  const modal = document.getElementById('edit-profile-modal');
-  const picker = document.getElementById('avatar-picker');
-  const preview = document.getElementById('edit-preview-icon');
-  const input = document.getElementById('edit-nickname');
-  input.value = currentUser.name;
-  selectedAvatar = currentUser.picture || '👤';
-  preview.textContent = selectedAvatar;
-  picker.innerHTML = defaultAvatars.map(av => `
-    <div class="avatar-option" onclick="selectAvatar('${av}', this)" 
-         style="cursor:pointer; font-size:24px; padding:8px; border-radius:12px; text-align:center; transition:0.2s; ${av === selectedAvatar ? 'background:var(--surface3); border:1px solid var(--gold);' : ''}">
-      ${av}
-    </div>
-  `).join('');
-  modal.style.display = 'flex';
-}
-
-function selectAvatar(av, el) {
-  selectedAvatar = av;
-  document.getElementById('edit-preview-icon').textContent = av;
-  document.querySelectorAll('.avatar-option').forEach(opt => {
-    opt.style.background = 'transparent';
-    opt.style.border = 'none';
-  });
-  el.style.background = 'var(--surface3)';
-  el.style.border = '1px solid var(--gold)';
-}
-
-function closeEditProfile() { document.getElementById('edit-profile-modal').style.display = 'none'; }
-
-function saveProfile() {
-  const newName = document.getElementById('edit-nickname').value.trim();
-  if (!newName) return showToast('⚠️', '닉네임을 입력해주세요');
-  currentUser.name = newName;
-  currentUser.picture = selectedAvatar;
-  const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
-  profiles[currentUser.email] = { name: newName, picture: selectedAvatar };
-  localStorage.setItem('userProfiles', JSON.stringify(profiles));
-  localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  updateUserUI();
-  closeEditProfile();
-  showToast('✅', '프로필이 변경되었습니다');
 }
 
 function updateUserUI() {
