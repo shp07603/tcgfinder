@@ -8,8 +8,6 @@ const recommendedPool = [
   { name: '블랙 매지션', set: '유희왕 레전더리', rarity: 'Ultra Rare', category: 'tcg', image: 'https://images.ygoprodeck.com/images/cards/46986414.jpg', typeColor: 'var(--purple)' }
 ];
 
-let currentFeatured = [];
-
 // ===================== GUIDE DATA =====================
 const guideData = {
   usage: {
@@ -56,19 +54,19 @@ function openGuide(key) {
 }
 
 // ===================== APP STATE =====================
-let scanIdx = 0;
 let previousScreen = 'home';
 let cameraStream = null;
 let capturedImageData = null;
 let currentAiResult = null;
 let scanning = false;
 
-// 필터 및 정렬 상태 초기화 (카드 추가/삭제 오류 해결을 위해 필수)
 let currentFilter = 'all';
 let currentSort = 'newest';
+let searchQuery = '';
 
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let myCollection = [];
+let customCategories = [];
 
 const defaultAvatars = ['👤', '🔥', '💧', '⚡', '🌿', '⭐', '🏆', '⚽', '🏀', '🎮', '🃏', '💎', '🦊', '🦁', '🐉'];
 let selectedAvatar = '👤';
@@ -96,7 +94,9 @@ async function playShutterSound() {
 function loadUserData() {
   if (currentUser) {
     const collKey = `collection_${currentUser.email}`;
+    const catKey = `categories_${currentUser.email}`;
     myCollection = JSON.parse(localStorage.getItem(collKey)) || [];
+    customCategories = JSON.parse(localStorage.getItem(catKey)) || [];
     const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
     if (profiles[currentUser.email]) {
       currentUser.name = profiles[currentUser.email].name;
@@ -104,13 +104,19 @@ function loadUserData() {
     }
   } else {
     myCollection = [];
+    customCategories = [];
   }
 }
 
 function saveUserCollection() {
   if (currentUser) {
-    const key = `collection_${currentUser.email}`;
-    localStorage.setItem(key, JSON.stringify(myCollection));
+    localStorage.setItem(`collection_${currentUser.email}`, JSON.stringify(myCollection));
+  }
+}
+
+function saveCustomCategories() {
+  if (currentUser) {
+    localStorage.setItem(`categories_${currentUser.email}`, JSON.stringify(customCategories));
   }
 }
 
@@ -138,12 +144,63 @@ function handleCredentialResponse(response) {
 function handleLogout() {
   currentUser = null;
   myCollection = [];
+  customCategories = [];
   localStorage.removeItem('currentUser');
   updateUserUI();
   updateStats();
   renderCollection();
   showToast('🔒', '로그아웃 되었습니다');
   goScreen('home');
+}
+
+// ===================== SEARCH & CATEGORY =====================
+function setupSearch() {
+  const searchInput = document.getElementById('coll-search-input');
+  if (!searchInput) return;
+  searchInput.addEventListener('input', (e) => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    renderCollection();
+  });
+}
+
+function openAddCategoryModal() {
+  const name = prompt('새 카테고리 이름을 입력하세요 (한글 6자, 영문 12자 이내)');
+  if (name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    
+    // 글자수 체크 (한글은 6자, 영문은 12자 제한)
+    const isEnglish = /^[a-zA-Z0-9\s]*$/.test(trimmed);
+    if (isEnglish && trimmed.length > 12) return alert('영문은 12자 이내로 입력해주세요.');
+    if (!isEnglish && trimmed.length > 6) return alert('한글은 6자 이내로 입력해주세요.');
+
+    if (customCategories.includes(trimmed)) return alert('이미 존재하는 카테고리입니다.');
+    
+    customCategories.push(trimmed);
+    saveCustomCategories();
+    renderCategoryChips();
+    showToast('📁', `카테고리 '${trimmed}' 추가됨`);
+  }
+}
+
+function renderCategoryChips() {
+  const row = document.getElementById('filter-row');
+  if (!row) return;
+  
+  const baseHtml = `
+    <div class="chip ${currentFilter === 'all' ? 'active' : ''}" onclick="filterColl('all',this)">전체</div>
+    <div class="chip ${currentFilter === 'pokemon' ? 'active' : ''}" onclick="filterColl('pokemon',this)">포켓몬</div>
+    <div class="chip ${currentFilter === 'sports' ? 'active' : ''}" onclick="filterColl('sports',this)">스포츠</div>
+    <div class="chip ${currentFilter === 'tcg' ? 'active' : ''}" onclick="filterColl('tcg',this)">TCG</div>
+  `;
+  
+  const customHtml = customCategories.map(cat => `
+    <div class="chip ${currentFilter === cat ? 'active' : ''}" onclick="filterColl('${cat}',this)">${cat}</div>
+  `).join('');
+  
+  const addBtnHtml = `<div class="chip" onclick="openAddCategoryModal()" style="background:var(--gold-dim); border-color:var(--gold); color:var(--gold); position: sticky; right: 0; margin-left: auto;">+ 추가</div>`;
+  
+  row.innerHTML = baseHtml + customHtml + addBtnHtml;
 }
 
 // ===================== PROFILE EDITING =====================
@@ -231,37 +288,6 @@ function loadTheme() {
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
 
-// ===================== DYNAMIC DATA FETCHING =====================
-function renderFeaturedCards() {
-  const grid = document.querySelector('#screen-home .card-grid');
-  if(!grid) return;
-  grid.innerHTML = currentFeatured.slice(0, 4).map(card => `
-    <div class="c-card" onclick="openFeaturedDetail('${card.name}')">
-      <div class="c-img" style="background: var(--surface2)">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
-        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
-      </div>
-      <div class="c-info">
-        <div class="c-name">${card.name}</div>
-        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function fetchFeaturedCards() {
-  const shuffled = [...recommendedPool].sort(() => 0.5 - Math.random());
-  currentFeatured = shuffled.slice(0, 6);
-  const now = new Date();
-  const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-  const timeEl = document.getElementById('featured-update-time');
-  if(timeEl) timeEl.textContent = `마지막 업데이트: ${timeStr} (10분마다 갱신됨)`;
-  renderFeaturedCards();
-  if(document.getElementById('screen-featured').classList.contains('active')) renderFullFeaturedGrid();
-}
-
-setInterval(fetchFeaturedCards, 10 * 60 * 1000);
-
 // ===================== CAMERA & CAPTURE =====================
 async function initCamera() {
   const video = document.getElementById('video-stream');
@@ -316,13 +342,14 @@ function goScreen(name) {
   } else {
     stopCamera();
   }
-  if (name === 'collection') renderCollection();
+  if (name === 'collection') {
+    renderCategoryChips();
+    renderCollection();
+  }
   if (name === 'wishlist') renderWishlist();
   if (name === 'home') {
-    renderFeaturedCards();
     renderRecentCards();
   }
-  if (name === 'featured') renderFullFeaturedGrid();
   updateStats();
   previousScreen = !noNavScreens.includes(name) ? name : previousScreen;
 }
@@ -349,10 +376,22 @@ function renderCollection() {
   const grid = document.getElementById('coll-grid');
   if(!grid) return;
   let filtered = [...myCollection];
-  if(currentFilter !== 'all') filtered = filtered.filter(c => c.category === currentFilter);
+  
+  // 1. 검색 필터 적용
+  if (searchQuery) {
+    filtered = filtered.filter(c => c.name.toLowerCase().includes(searchQuery));
+  }
+  
+  // 2. 카테고리 필터 적용
+  if(currentFilter !== 'all') {
+    filtered = filtered.filter(c => c.category === currentFilter);
+  }
+  
+  // 3. 정렬 적용
   if(currentSort === 'newest') filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
   else if(currentSort === 'oldest') filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
   else if(currentSort === 'wishlist') filtered = filtered.filter(c => c.wish);
+  
   let html = filtered.map((card) => {
     const realIdx = myCollection.findIndex(c => c.date === card.date);
     return `
@@ -401,14 +440,17 @@ function renderRecentCards() {
     scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
     return;
   }
-  scroll.innerHTML = myCollection.slice(0, 5).map((card, index) => `
-    <div class="r-card" onclick="openCapturedDetail(${index})">
-      <div class="r-card-img" style="background: var(--surface2)">
-        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+  scroll.innerHTML = myCollection.slice(0, 5).map((card) => {
+    const realIdx = myCollection.findIndex(c => c.date === card.date);
+    return `
+      <div class="r-card" onclick="openCapturedDetail(${realIdx})">
+        <div class="r-card-img" style="background: var(--surface2)">
+          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <div class="r-card-name">${card.name}</div>
       </div>
-      <div class="r-card-name">${card.name}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function addToCollection() {
@@ -464,13 +506,14 @@ window.onload = function () {
   updateUserUI();
   updateStats();
   updateClock();
+  setupSearch();
   setInterval(updateClock, 1000);
-  fetchFeaturedCards();
   goScreen('home');
 }
 
 function openCapturedDetail(index) {
   const card = myCollection[index];
+  if (!card) return;
   document.getElementById('d-name').textContent = card.name;
   document.getElementById('d-set').textContent = card.set;
   document.getElementById('d-showcase').innerHTML = `
@@ -480,7 +523,6 @@ function openCapturedDetail(index) {
   const detailBack = document.getElementById('detail-back');
   detailBack.onclick = () => goScreen('collection');
 
-  // 삭제 버튼 이벤트 연결
   const deleteBtn = document.getElementById('detail-delete-btn');
   if (deleteBtn) {
     deleteBtn.onclick = () => {
@@ -489,7 +531,6 @@ function openCapturedDetail(index) {
       }
     };
   }
-
   goScreen('detail');
 }
 
@@ -503,22 +544,12 @@ function deleteCard(index) {
   goScreen('collection');
 }
 
-function openFeaturedDetail(name) {
-  const card = recommendedPool.find(c => c.name === name);
-  if(!card) return;
-  document.getElementById('d-name').textContent = card.name;
-  document.getElementById('d-set').textContent = card.set;
-  document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:contain;padding:20px;">`;
-  document.getElementById('detail-back').onclick = () => goScreen('home');
-  goScreen('detail');
-}
-
 function filterHome(type, el) {
   currentFilter = type;
   document.querySelectorAll('#home-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
   if(el) {
     const classMap = { all: 'active-all', pokemon: 'active-poke', sports: 'active-soccer', tcg: 'active-all' };
-    el.className = 'cat-tab ' + classMap[type];
+    el.className = 'cat-tab ' + (classMap[type] || 'active-all');
   }
   renderCollection();
 }

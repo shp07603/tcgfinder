@@ -56,32 +56,9 @@
       <div class="see-all" onclick="goScreen('collection')">전체보기 →</div>
     </div>
     <div class="recent-scroll fade-up">
-      <div class="r-card" onclick="openDetail('charizard')">
-        <div class="r-card-img bg-holo"><div class="holo-shine"></div>⚡</div>
-        <div class="r-card-name">리자몽 VMAX</div>
-      </div>
-      <div class="r-card" onclick="openDetail('mbappe')">
-        <div class="r-card-img bg-soccer">⚽</div>
-        <div class="r-card-name">음바페</div>
-      </div>
-      <div class="r-card" onclick="openDetail('blastoise')">
-        <div class="r-card-img bg-water">🌊</div>
-        <div class="r-card-name">거북왕</div>
-      </div>
-      <div class="r-card" onclick="openDetail('pikachu')">
-        <div class="r-card-img bg-gold">⭐</div>
-        <div class="r-card-name">피카츄 ex</div>
-      </div>
-      <div class="r-card" onclick="openDetail('pedri')">
-        <div class="r-card-img bg-soccer">🌀</div>
-        <div class="r-card-name">Pedri</div>
-      </div>
+      <!-- 동적으로 사용자의 최근 카드가 표시됩니다 -->
     </div>
 
-    <div class="section-hdr fade-up">
-      <div class="section-title">주목할 카드</div>
-      <div class="see-all" onclick="goScreen('featured')">더보기 →</div>
-    </div>
     <div class="section-hdr fade-up">
       <div class="section-title">컬렉터 가이드</div>
     </div>
@@ -112,21 +89,7 @@
     <div style="height:20px"></div>
   </div>
 
-  <!-- ========== FEATURED (RECOMMENDED) ========== -->
-  <div class="screen" id="screen-featured">
-    <div class="status-bar"><span class="real-time-clock">9:41</span><span></span></div>
-    <div class="scan-header">
-      <div class="back-btn" onclick="goScreen('home')">←</div>
-      <div class="screen-title">추천 카드</div>
-    </div>
-    <div style="padding: 0 20px 10px; font-size: 12px; color: var(--text3);" id="featured-update-time">
-      마지막 업데이트: 09:41 (10분마다 갱신됨)
-    </div>
-    <div class="card-grid" id="featured-full-grid">
-      <!-- Dynamic Full Recommended List -->
-    </div>
-    <div style="height:20px"></div>
-  </div>
+  <!-- ========== FEATURED (REMOVED) ========== -->
 
   <!-- ========== SCAN ========== -->
   <div class="screen" id="screen-scan">
@@ -217,17 +180,19 @@
     <div class="status-bar"><span class="real-time-clock">9:41</span><span></span></div>
     <div class="coll-header">
       <div class="coll-title">내 컬렉션</div>
-      <div class="coll-sub" id="coll-sub">247장 보유중</div>
+      <div class="coll-sub" id="coll-sub">0장 보유중</div>
     </div>
     <div class="search-bar">
       <div class="search-icon">🔍</div>
-      <div class="search-placeholder">카드 검색...</div>
+      <input type="text" id="coll-search-input" placeholder="카드 이름으로 검색..." style="flex:1; background:transparent; border:none; color:var(--text); outline:none; font-size:14px;">
     </div>
-    <div class="filter-row" id="filter-row">
+    <div class="filter-row" id="filter-row" style="padding-right: 60px; position: relative;">
       <div class="chip active" onclick="filterColl('all',this)">전체</div>
       <div class="chip" onclick="filterColl('pokemon',this)">포켓몬</div>
       <div class="chip" onclick="filterColl('sports',this)">스포츠</div>
       <div class="chip" onclick="filterColl('tcg',this)">TCG</div>
+      <!-- 동적 카테고리가 여기에 추가됩니다 -->
+      <div class="chip" onclick="openAddCategoryModal()" style="background:var(--gold-dim); border-color:var(--gold); color:var(--gold); position: sticky; right: 0; margin-left: auto;">+ 추가</div>
     </div>
     <div class="sort-row">
       <div class="sort-chip active" onclick="setSort('newest',this)">최근 순</div>
