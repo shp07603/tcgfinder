@@ -548,26 +548,6 @@ function showToast(icon, msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-function filterHome(type, el) {
-  document.querySelectorAll('.cat-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
-  if(el) {
-    if(type === 'all') el.className = 'cat-tab active-all';
-    else if(type === 'pokemon') el.className = 'cat-tab active-poke';
-    else if(type === 'soccer') el.className = 'cat-tab active-soccer';
-  }
-}
-
-function filterColl(type, el) {
-  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
-  if(el) el.classList.add('active');
-}
-
-function swapSort(el) {
-  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
-  if(el) el.classList.add('active');
-  showToast('🔄', '정렬 방식이 변경됐습니다');
-}
-
 function updateClock() {
   const now = new Date();
   const h = now.getHours().toString().padStart(2,'0');
