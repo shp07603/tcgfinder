@@ -37,12 +37,20 @@
   --text: #1A1A1A;
   --text2: rgba(26,26,26,0.65);
   --text3: rgba(26,26,26,0.4);
-  --nav-bg: rgba(255, 255, 255, 0.9);
+  --nav-bg: #FFFFFF;
 }
 
-:root {
-  /* ... existing vars ... */
-  --nav-bg: rgba(10, 10, 16, 0.96);
+[data-theme="light"] #nav {
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .nav-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .nav-btn.active .nav-label {
+  color: #B8922A; /* A slightly darker gold for white bg */
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -106,6 +114,7 @@ html, body {
   height: var(--nav-h);
   background: var(--nav-bg);
   backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid var(--border);
   display: flex; justify-content: space-around; align-items: center;
   padding: 0 8px 16px;
