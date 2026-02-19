@@ -1,35 +1,43 @@
-// ===================== CARD DATA =====================
-const cards = {
-  charizard: {
-    name:'리자몽 VMAX', set:'Fusion Strike · #252/264',
-    emoji:'⚡', bg:'bg-holo', holo:true,
-    tags:['Holo','Ultra Rare','Mint','🔥 불꽃'],
-    tagClasses:['t-holo','t-ultra','t-mint','t-fire'],
-    hp:330, hpPct:82,
-    stats:{ 타입:'🔥 불꽃', 카드사:'Nintendo', 등급:'Mint', 추가일:'25.02.18' },
-    attacks:[
-      { energy:'🔥🔥', name:'Max Volcanic', desc:'에너지 2장 폐기, 화상 부여', dmg:'220' },
-      { energy:'🔥🔥🔥', name:'G-Max Wildfire', desc:'상대 벤치 포켓몬 20 데미지', dmg:'250' }
-    ],
-    category:'pokemon'
+// ===================== CURATED FEATURED CARDS =====================
+const featuredCards = [
+  {
+    name: 'Pikachu VMAX',
+    set: 'Celebrations',
+    rarity: 'Ultra Rare',
+    category: 'pokemon',
+    image: 'https://images.pokemontcg.io/cel25/5_hires.png',
+    typeColor: 'var(--pokemon)'
   },
-  mbappe: {
-    name:'Kylian Mbappé', set:'2024 Topps Chrome · Gold Prizm',
-    emoji:'⚽', bg:'bg-soccer', holo:false,
-    tags:['Gold Prizm','Numbered /50','Mint'],
-    tagClasses:['t-ultra','t-holo','t-mint'],
-    hp:null,
-    stats:{ 카드사:'Topps', 시즌:'2023-24', 등급:'Mint', 추가일:'25.02.15' },
-    attacks:[],
-    category:'soccer'
+  {
+    name: 'Lionel Messi',
+    set: '2022 Panini Prizm',
+    rarity: 'Gold Prizm',
+    category: 'soccer',
+    image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg',
+    typeColor: 'var(--soccer)'
   },
-  // ... more cards can be added here
-};
+  {
+    name: 'Charizard ex',
+    set: 'Scarlet & Violet-151',
+    rarity: 'Special Illustration Rare',
+    category: 'pokemon',
+    image: 'https://images.pokemontcg.io/sv3pt5/199_hires.png',
+    typeColor: 'var(--pokemon)'
+  },
+  {
+    name: 'Erling Haaland',
+    set: '2023 Topps Chrome',
+    rarity: 'Superfractor',
+    category: 'soccer',
+    image: 'https://i.ebayimg.com/images/g/unYAAOSw~RlkY~Z~/s-l1600.jpg',
+    typeColor: 'var(--soccer)'
+  }
+];
 
 // ===================== SCAN DATA =====================
 const scanResults = [
-  { id: 'charizard', name:'리자몽 VMAX', set:'Fusion Strike', rarity:'252/264 · Ultra Rare', cat:'포켓몬 TCG', emoji:'⚡', bg:'bg-holo', conf:'98.4' },
-  { id: 'mbappe', name:'음바페 Gold Prizm', set:'2024 Topps Chrome', rarity:'Gold · /50', cat:'축구 카드', emoji:'⚽', bg:'bg-soccer', conf:'96.1' },
+  { id: 'charizard', name:'리자몽 VMAX', set:'Fusion Strike', rarity:'252/264 · Ultra Rare', cat:'포켓몬 TCG', emoji:'⚡', bg:'bg-holo', conf:'98.4', category: 'pokemon' },
+  { id: 'mbappe', name:'음바페 Gold Prizm', set:'2024 Topps Chrome', rarity:'Gold · /50', cat:'축구 카드', emoji:'⚽', bg:'bg-soccer', conf:'96.1', category: 'soccer' },
 ];
 
 let scanIdx = 0;
@@ -107,8 +115,6 @@ function captureFrame() {
 
 // ===================== VISION AI (PLACEHOLDER) =====================
 async function analyzeImageWithAI(imageData) {
-  // TODO: 여기에 실제 AI API (예: Gemini Vision, OpenAI Vision) 연동 코드를 넣으세요.
-  // 지금은 시뮬레이션을 위해 1.5초 대기 후 랜덤 결과를 반환합니다.
   return new Promise((resolve) => {
     setTimeout(() => {
       const result = scanResults[scanIdx % scanResults.length];
@@ -143,17 +149,90 @@ function goScreen(name) {
     renderCollection();
   }
 
+  if (name === 'home') {
+    renderFeaturedCards();
+    renderRecentCards();
+  }
+
   updateStats();
   previousScreen = name !== 'detail' ? name : previousScreen;
 }
 
 function updateStats() {
-  const totalCount = 247 + myCollection.length;
+  const totalCount = myCollection.length;
+  const pokeCount = myCollection.filter(c => c.category === 'pokemon').length;
+  const soccerCount = myCollection.filter(c => c.category === 'soccer').length;
+  const rareCount = myCollection.filter(c => c.rarity && c.rarity.toLowerCase().includes('rare')).length;
+
+  // Home Screen Stats
   const totalEl = document.getElementById('total-count');
   if(totalEl) totalEl.textContent = totalCount;
   
+  const heroPills = document.querySelectorAll('.hero-pill .hp-val');
+  if(heroPills.length >= 3) {
+    heroPills[0].textContent = `🔴 ${pokeCount}`;
+    heroPills[1].textContent = `⚽ ${soccerCount}`;
+    heroPills[2].textContent = `★ ${rareCount}`;
+  }
+
+  const catTabs = document.querySelectorAll('.cat-tab');
+  if(catTabs.length >= 3) {
+    catTabs[0].textContent = `전체 ${totalCount}`;
+    catTabs[1].textContent = `🔴 포켓몬 ${pokeCount}`;
+    catTabs[2].textContent = `⚽ 축구 ${soccerCount}`;
+  }
+
+  // Collection Screen Subtitle
   const collSub = document.getElementById('coll-sub');
   if(collSub) collSub.textContent = totalCount + '장 보유중';
+
+  const collChips = document.querySelectorAll('#filter-row .chip');
+  if(collChips.length >= 4) {
+    collChips[0].textContent = `전체 ${totalCount}`;
+    collChips[1].textContent = `🔴 포켓몬 ${pokeCount}`;
+    collChips[2].textContent = `⚽ 축구 ${soccerCount}`;
+    collChips[3].textContent = `★ 레어 ${rareCount}`;
+  }
+}
+
+// ===================== RENDER HOME COMPONENTS =====================
+function renderFeaturedCards() {
+  const grid = document.querySelector('#screen-home .card-grid');
+  if(!grid) return;
+
+  grid.innerHTML = featuredCards.map(card => `
+    <div class="c-card" onclick="showToast('ℹ️', '추천 카드 상세 정보는 준비 중입니다')">
+      <div class="c-img" style="background: var(--surface2)">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:contain; padding: 10px;">
+        <div class="rarity-badge rb-rare" style="font-size: 7px;">${card.rarity.toUpperCase()}</div>
+      </div>
+      <div class="c-info">
+        <div class="c-name">${card.name}</div>
+        <div class="c-meta"><div class="type-dot" style="background:${card.typeColor}"></div>${card.set}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecentCards() {
+  const scroll = document.querySelector('.recent-scroll');
+  if(!scroll) return;
+
+  if(myCollection.length === 0) {
+    scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
+    return;
+  }
+
+  // Show last 5 added cards
+  const recent = myCollection.slice(0, 5);
+  scroll.innerHTML = recent.map((card, index) => `
+    <div class="r-card" onclick="openCapturedDetail(${index})">
+      <div class="r-card-img" style="background: var(--surface2)">
+        <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+      </div>
+      <div class="r-card-name">${card.name}</div>
+    </div>
+  `).join('');
 }
 
 // ===================== SCAN & COLLECTION =====================
@@ -171,17 +250,12 @@ async function triggerScan() {
   }
   hint.textContent = 'AI가 이미지 분석 중...';
 
-  // 1. 실제 이미지 캡처
   capturedImageData = captureFrame();
-
-  // 2. AI 분석 요청 (imageData를 서버나 API로 보낼 준비)
   const result = await analyzeImageWithAI(capturedImageData);
   currentAiResult = result;
 
-  // 3. 결과 표시
   const thumb = document.getElementById('ai-thumb');
   thumb.className = 'ai-thumb ' + result.bg;
-  // 캡처한 이미지를 미리보기에 표시
   thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
 
   document.getElementById('ai-name').textContent = result.name;
@@ -231,10 +305,8 @@ function addToCollection() {
 
 function renderCollection() {
   const grid = document.getElementById('coll-grid');
-  // 기본 카드들 (Hardcoded markers) + 내 컬렉션
   let html = '';
   
-  // 내 컬렉션 (캡처된 이미지 포함)
   myCollection.forEach((card, index) => {
     html += `
       <div class="cg-card" onclick="openCapturedDetail(${index})">
@@ -249,12 +321,7 @@ function renderCollection() {
     `;
   });
 
-  // 기존 하드코딩된 더미 데이터 유지 (예시)
   html += `
-    <div class="cg-card" onclick="openDetail('charizard')">
-      <div class="cg-bg bg-holo"><div class="holo-shine" style="position:absolute;inset:0"></div>⚡</div>
-      <div class="cg-overlay"><div class="cg-name">리자몽 VMAX</div><div class="cg-rare">★ Ultra Rare</div></div>
-    </div>
     <div class="cg-add" onclick="goScreen('scan')">
       <div class="cg-add-icon">+</div>
       <div class="cg-add-lbl">카드 추가</div>
@@ -264,7 +331,6 @@ function renderCollection() {
   grid.innerHTML = html;
 }
 
-// TODO: 캡처된 카드의 상세 페이지 열기 로직 추가 필요
 function openCapturedDetail(index) {
   const card = myCollection[index];
   showToast('ℹ️', '상세 정보 준비 중: ' + card.name);
@@ -279,28 +345,34 @@ let scanning = false;
 let toastTimer;
 function showToast(icon, msg) {
   clearTimeout(toastTimer);
-  document.getElementById('toast-icon').textContent = icon;
-  document.getElementById('toast-msg').textContent = msg;
+  const toastIcon = document.getElementById('toast-icon');
+  const toastMsg = document.getElementById('toast-msg');
+  if(toastIcon) toastIcon.textContent = icon;
+  if(toastMsg) toastMsg.textContent = msg;
   const t = document.getElementById('toast');
-  t.classList.add('show');
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  if(t) {
+    t.classList.add('show');
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
 }
 
 function filterHome(type, el) {
   document.querySelectorAll('.cat-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
-  if(type === 'all') el.className = 'cat-tab active-all';
-  else if(type === 'pokemon') el.className = 'cat-tab active-poke';
-  else if(type === 'soccer') el.className = 'cat-tab active-soccer';
+  if(el) {
+    if(type === 'all') el.className = 'cat-tab active-all';
+    else if(type === 'pokemon') el.className = 'cat-tab active-poke';
+    else if(type === 'soccer') el.className = 'cat-tab active-soccer';
+  }
 }
 
 function filterColl(type, el) {
   document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
 }
 
 function swapSort(el) {
   document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   showToast('🔄', '정렬 방식이 변경됐습니다');
 }
 
@@ -318,7 +390,8 @@ updateClock();
 setInterval(updateClock, 10000);
 goScreen('home');
 
-// Helper for Detail screen
+// Detail screen helper
 function openDetail(cardId) {
-  // Existing logic...
+  // Can be expanded to use myCollection or featuredCards
+  showToast('ℹ️', '상세 정보 준비 중입니다');
 }
