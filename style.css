@@ -24,6 +24,7 @@
   --radius: 22px;
   --radius-sm: 14px;
   --transition: all 0.3s ease;
+  --nav-bg: rgba(10, 10, 16, 0.96);
 }
 
 [data-theme="light"] {
@@ -36,6 +37,12 @@
   --text: #1A1A1A;
   --text2: rgba(26,26,26,0.65);
   --text3: rgba(26,26,26,0.4);
+  --nav-bg: rgba(255, 255, 255, 0.9);
+}
+
+:root {
+  /* ... existing vars ... */
+  --nav-bg: rgba(10, 10, 16, 0.96);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -97,7 +104,7 @@ html, body {
 #nav {
   position: absolute; bottom: 0; left: 0; right: 0;
   height: var(--nav-h);
-  background: rgba(10,10,16,0.96);
+  background: var(--nav-bg);
   backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid var(--border);
   display: flex; justify-content: space-around; align-items: center;
