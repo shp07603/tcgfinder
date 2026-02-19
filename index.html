@@ -1,14 +1,401 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CardVault</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+
+<div id="app">
+
+  <!-- ========== HOME ========== -->
+  <div class="screen active" id="screen-home">
+    <div class="status-bar">
+      <span id="clock">9:41</span>
+      <span>●●●● WiFi</span>
+    </div>
+    <div class="home-header fade-up">
+      <div class="logo">CardVault</div>
+      <div class="avatar-btn" onclick="goScreen('profile')">👤</div>
+    </div>
+
+    <div class="hero fade-up">
+      <div class="hero-label">내 컬렉션</div>
+      <div class="hero-count" id="total-count">247</div>
+      <div class="hero-sub">총 보유 카드</div>
+      <div class="hero-pills">
+        <div class="hero-pill">
+          <div class="hp-val" style="color:var(--pokemon)">🔴 142</div>
+          <div class="hp-lbl">포켓몬 TCG</div>
+        </div>
+        <div class="hero-pill">
+          <div class="hp-val" style="color:var(--soccer)">⚽ 105</div>
+          <div class="hp-lbl">축구 카드</div>
+        </div>
+        <div class="hero-pill">
+          <div class="hp-val" style="color:var(--gold)">★ 23</div>
+          <div class="hp-lbl">레어 이상</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cat-tabs fade-up">
+      <div class="cat-tab active-all" onclick="filterHome('all',this)">전체 247</div>
+      <div class="cat-tab" onclick="filterHome('pokemon',this)">🔴 포켓몬 142</div>
+      <div class="cat-tab" onclick="filterHome('soccer',this)">⚽ 축구 105</div>
+    </div>
+
+    <div class="section-hdr fade-up">
+      <div class="section-title">최근 추가</div>
+      <div class="see-all" onclick="goScreen('collection')">전체보기 →</div>
+    </div>
+    <div class="recent-scroll fade-up">
+      <div class="r-card" onclick="openDetail('charizard')">
+        <div class="r-card-img bg-holo"><div class="holo-shine"></div>⚡</div>
+        <div class="r-card-name">리자몽 VMAX</div>
+      </div>
+      <div class="r-card" onclick="openDetail('mbappe')">
+        <div class="r-card-img bg-soccer">⚽</div>
+        <div class="r-card-name">음바페</div>
+      </div>
+      <div class="r-card" onclick="openDetail('blastoise')">
+        <div class="r-card-img bg-water">🌊</div>
+        <div class="r-card-name">거북왕</div>
+      </div>
+      <div class="r-card" onclick="openDetail('pikachu')">
+        <div class="r-card-img bg-gold">⭐</div>
+        <div class="r-card-name">피카츄 ex</div>
+      </div>
+      <div class="r-card" onclick="openDetail('pedri')">
+        <div class="r-card-img bg-soccer">🌀</div>
+        <div class="r-card-name">Pedri</div>
+      </div>
+    </div>
+
+    <div class="section-hdr fade-up">
+      <div class="section-title">주목할 카드</div>
+      <div class="see-all" onclick="goScreen('collection')">더보기 →</div>
+    </div>
+    <div class="card-grid fade-up">
+      <div class="c-card" onclick="openDetail('charizard')">
+        <div class="c-img bg-holo">
+          <div class="holo-shine"></div>
+          ⚡
+          <div class="rarity-badge rb-ultra">ULTRA</div>
+        </div>
+        <div class="c-info">
+          <div class="c-name">리자몽 VMAX</div>
+          <div class="c-meta"><div class="type-dot" style="background:var(--pokemon)"></div>Fusion Strike</div>
+        </div>
+      </div>
+      <div class="c-card" onclick="openDetail('mbappe')">
+        <div class="c-img bg-soccer">
+          ⚽
+          <div class="rarity-badge rb-rare">PRIZM</div>
+        </div>
+        <div class="c-info">
+          <div class="c-name">Mbappé</div>
+          <div class="c-meta"><div class="type-dot" style="background:var(--soccer)"></div>2024 Topps</div>
+        </div>
+      </div>
+      <div class="c-card" onclick="openDetail('pikachu')">
+        <div class="c-img bg-gold">
+          ⭐
+          <div class="rarity-badge rb-rare">GOLD</div>
+        </div>
+        <div class="c-info">
+          <div class="c-name">피카츄 ex</div>
+          <div class="c-meta"><div class="type-dot" style="background:var(--pokemon)"></div>Promo</div>
+        </div>
+      </div>
+      <div class="c-card" onclick="openDetail('pedri')">
+        <div class="c-img bg-soccer">
+          🌀
+          <div class="rarity-badge rb-common">RARE</div>
+        </div>
+        <div class="c-info">
+          <div class="c-name">Pedri</div>
+          <div class="c-meta"><div class="type-dot" style="background:var(--soccer)"></div>Panini 2024</div>
+        </div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== SCAN ========== -->
+  <div class="screen" id="screen-scan">
+    <div class="status-bar"><span id="clock2">9:41</span><span>●●●● WiFi</span></div>
+    <div class="scan-header">
+      <div class="back-btn" onclick="goScreen('home')">←</div>
+      <div class="screen-title">카드 스캔</div>
+    </div>
+
+    <div class="viewfinder" id="viewfinder" onclick="triggerScan()">
+      <div class="vf-corner vfc-tl"></div>
+      <div class="vf-corner vfc-tr"></div>
+      <div class="vf-corner vfc-bl"></div>
+      <div class="vf-corner vfc-br"></div>
+      <div class="scan-line"></div>
+      <div class="vf-placeholder">🃏</div>
+      <div class="vf-hint">탭하여 카드를 스캔하세요</div>
+    </div>
+
+    <div class="scan-opts">
+      <div class="scan-opt" onclick="triggerScan()">
+        <div class="scan-opt-icon">📷</div>
+        <div class="scan-opt-lbl">카메라 스캔</div>
+      </div>
+      <div class="scan-opt" onclick="triggerScan()">
+        <div class="scan-opt-icon">🖼️</div>
+        <div class="scan-opt-lbl">갤러리에서</div>
+      </div>
+      <div class="scan-opt" onclick="showManual()">
+        <div class="scan-opt-icon">✏️</div>
+        <div class="scan-opt-lbl">직접 입력</div>
+      </div>
+    </div>
+
+    <!-- AI Result (hidden by default) -->
+    <div class="ai-result-wrap" id="ai-result" style="display:none">
+      <div class="ai-result-hdr">
+        <div class="ai-tag">✦ AI 인식 결과</div>
+        <div class="confidence" id="ai-confidence">98.4% 신뢰도</div>
+      </div>
+      <div class="ai-box">
+        <div class="ai-box-body">
+          <div class="ai-thumb bg-holo" id="ai-thumb">
+            <div class="holo-shine"></div>
+            <span id="ai-emoji">⚡</span>
+          </div>
+          <div class="ai-fields">
+            <div>
+              <div class="ai-field-lbl">카드명</div>
+              <div class="ai-field-val" id="ai-name">리자몽 VMAX</div>
+            </div>
+            <div>
+              <div class="ai-field-lbl">세트</div>
+              <div class="ai-field-val" id="ai-set">Fusion Strike</div>
+            </div>
+            <div>
+              <div class="ai-field-lbl">번호 / 레어도</div>
+              <div class="ai-field-val gold-txt" id="ai-rarity">252/264 · Ultra Rare</div>
+            </div>
+            <div>
+              <div class="ai-field-lbl">카테고리</div>
+              <div class="ai-field-val" id="ai-cat">포켓몬 TCG</div>
+            </div>
+          </div>
+        </div>
+        <div class="ai-actions">
+          <button class="btn-sec" onclick="resetScan()">다시 스캔</button>
+          <button class="btn-primary" onclick="addToCollection()">✓ 컬렉션에 추가</button>
+        </div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== COLLECTION ========== -->
+  <div class="screen" id="screen-collection">
+    <div class="status-bar"><span>9:41</span><span>●●●● WiFi</span></div>
+    <div class="coll-header">
+      <div class="coll-title">내 컬렉션</div>
+      <div class="coll-sub" id="coll-sub">247장 보유중</div>
+    </div>
+    <div class="search-bar">
+      <div class="search-icon">🔍</div>
+      <div class="search-placeholder">카드 검색...</div>
+    </div>
+    <div class="filter-row" id="filter-row">
+      <div class="chip active" onclick="filterColl('all',this)">전체 247</div>
+      <div class="chip" onclick="filterColl('pokemon',this)">🔴 포켓몬 142</div>
+      <div class="chip" onclick="filterColl('soccer',this)">⚽ 축구 105</div>
+      <div class="chip" onclick="filterColl('rare',this)">★ 레어 23</div>
+    </div>
+    <div class="sort-row">
+      <div class="sort-chip active">레어도 순</div>
+      <div class="sort-chip" onclick="swapSort(this)">최근 추가</div>
+      <div class="sort-chip" onclick="swapSort(this)">이름 순</div>
+      <div class="sort-chip" onclick="swapSort(this)">세트별</div>
+    </div>
+    <div class="coll-grid" id="coll-grid">
+      <div class="cg-card" onclick="openDetail('charizard')">
+        <div class="cg-bg bg-holo"><div class="holo-shine" style="position:absolute;inset:0"></div>⚡</div>
+        <div class="cg-overlay"><div class="cg-name">리자몽 VMAX</div><div class="cg-rare">★ Ultra Rare</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('mbappe')">
+        <div class="cg-bg bg-soccer">⚽</div>
+        <div class="cg-overlay"><div class="cg-name">Mbappé</div><div class="cg-rare">Gold Prizm</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('pikachu')">
+        <div class="cg-bg bg-gold">⭐</div>
+        <div class="cg-overlay"><div class="cg-name">피카츄 ex</div><div class="cg-rare">★ Promo</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('blastoise')">
+        <div class="cg-bg bg-water">🌊</div>
+        <div class="cg-overlay"><div class="cg-name">거북왕</div><div class="cg-rare">Holo Rare</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('pedri')">
+        <div class="cg-bg bg-soccer">🌀</div>
+        <div class="cg-overlay"><div class="cg-name">Pedri</div><div class="cg-rare">Panini 2024</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('venusaur')">
+        <div class="cg-bg bg-green">🌿</div>
+        <div class="cg-overlay"><div class="cg-name">이상해꽃</div><div class="cg-rare">Base Set</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('bellingham')">
+        <div class="cg-bg bg-soccer">⚡</div>
+        <div class="cg-overlay"><div class="cg-name">Bellingham</div><div class="cg-rare">Chrome RC</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('charmander')">
+        <div class="cg-bg bg-fire">🔥</div>
+        <div class="cg-overlay"><div class="cg-name">파이리</div><div class="cg-rare">Common</div></div>
+      </div>
+      <div class="cg-card" onclick="openDetail('haaland')">
+        <div class="cg-bg bg-soccer">⚽</div>
+        <div class="cg-overlay"><div class="cg-name">Haaland</div><div class="cg-rare">Topps 2024</div></div>
+      </div>
+      <div class="cg-add" onclick="goScreen('scan')">
+        <div class="cg-add-icon">+</div>
+        <div class="cg-add-lbl">카드 추가</div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== DETAIL ========== -->
+  <div class="screen" id="screen-detail">
+    <div class="status-bar"><span>9:41</span><span>●●●● WiFi</span></div>
+    <div class="detail-nav">
+      <div class="back-btn" id="detail-back">←</div>
+      <div class="screen-title">카드 상세</div>
+      <div class="detail-more">⋯</div>
+    </div>
+    <div class="card-showcase" id="d-showcase">
+      <div class="holo-shine"></div>
+      <span id="d-emoji">⚡</span>
+    </div>
+    <div class="detail-info-wrap">
+      <div class="d-name" id="d-name">리자몽 VMAX</div>
+      <div class="d-set" id="d-set">Fusion Strike · #252/264</div>
+      <div class="d-tags" id="d-tags"></div>
+    </div>
+    <div id="d-hp-section" style="padding:0 20px; margin-bottom:16px;">
+      <div class="hp-top">
+        <div class="hp-label">HP</div>
+        <div class="hp-number" id="d-hp">330 HP</div>
+      </div>
+      <div class="hp-track"><div class="hp-fill" id="d-hp-fill"></div></div>
+    </div>
+    <div style="padding:0 20px;">
+      <div class="stats-grid" id="d-stats"></div>
+    </div>
+    <div style="padding:0 20px; margin-top:16px;" id="d-attacks-wrap">
+      <div class="attacks-title">기술</div>
+      <div id="d-attacks"></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== WISHLIST ========== -->
+  <div class="screen" id="screen-wishlist">
+    <div class="status-bar"><span>9:41</span><span>●●●● WiFi</span></div>
+    <div style="padding:12px 20px 0;">
+      <div style="font-family:'Playfair Display',serif;font-size:26px;font-weight:900;">위시리스트</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:3px;">갖고 싶은 카드 모음</div>
+    </div>
+    <div class="wishlist-empty">
+      <div class="we-icon">♡</div>
+      <div class="we-title">아직 비어있어요</div>
+      <div class="we-sub">갖고 싶은 카드를 위시리스트에<br>추가해 보세요</div>
+      <button class="we-btn" onclick="goScreen('collection')">컬렉션 둘러보기</button>
+    </div>
+  </div>
+
+  <!-- ========== PROFILE ========== -->
+  <div class="screen" id="screen-profile">
+    <div class="status-bar"><span>9:41</span><span>●●●● WiFi</span></div>
+    <div class="profile-hero">
+      <div class="profile-avatar">👤</div>
+      <div class="profile-name">나의 컬렉션</div>
+      <div class="profile-since">COLLECTOR SINCE 2024</div>
+    </div>
+    <div class="profile-stats">
+      <div class="ps-item fade-up">
+        <div class="ps-val">247</div>
+        <div class="ps-lbl">총 카드</div>
+      </div>
+      <div class="ps-item fade-up">
+        <div class="ps-val">23</div>
+        <div class="ps-lbl">레어 카드</div>
+      </div>
+      <div class="ps-item fade-up">
+        <div class="ps-val">2</div>
+        <div class="ps-lbl">카테고리</div>
+      </div>
+    </div>
+    <div class="menu-list">
+      <div class="menu-item fade-up">
+        <div class="menu-icon">📊</div>
+        <div class="menu-text">컬렉션 통계</div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item fade-up">
+        <div class="menu-icon">📤</div>
+        <div class="menu-text">컬렉션 공유</div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item fade-up">
+        <div class="menu-icon">🔔</div>
+        <div class="menu-text">알림 설정</div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item fade-up">
+        <div class="menu-icon">🌐</div>
+        <div class="menu-text">언어 설정</div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item fade-up">
+        <div class="menu-icon">ℹ️</div>
+        <div class="menu-text">앱 정보</div>
+        <div class="menu-arrow">›</div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== NAV ========== -->
+  <nav id="nav">
+    <button class="nav-btn active" id="nav-home" onclick="goScreen('home')">
+      <div class="nav-icon">⊞</div>
+      <div class="nav-label">홈</div>
+    </button>
+    <button class="nav-btn" id="nav-collection" onclick="goScreen('collection')">
+      <div class="nav-icon">▣</div>
+      <div class="nav-label">컬렉션</div>
+    </button>
+    <button class="nav-scan-btn" onclick="goScreen('scan')">📷</button>
+    <button class="nav-btn" id="nav-wishlist" onclick="goScreen('wishlist')">
+      <div class="nav-icon">♡</div>
+      <div class="nav-label">위시</div>
+    </button>
+    <button class="nav-btn" id="nav-profile" onclick="goScreen('profile')">
+      <div class="nav-icon">◉</div>
+      <div class="nav-label">내 정보</div>
+    </button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast">
+    <div class="toast-icon" id="toast-icon">✅</div>
+    <div class="toast-msg" id="toast-msg">컬렉션에 추가됐습니다!</div>
+  </div>
+
+</div>
+
+<script src="main.js"></script>
 </body>
 </html>
