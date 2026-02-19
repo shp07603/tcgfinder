@@ -198,7 +198,7 @@ function goScreen(name) {
   const nb = document.getElementById('nav-' + name);
   if(nb) nb.classList.add('active');
   const nav = document.getElementById('nav');
-  const noNavScreens = ['detail', 'guide', 'about', 'privacy'];
+  const noNavScreens = ['detail', 'guide', 'about', 'privacy', 'contact'];
   nav.style.display = noNavScreens.includes(name) ? 'none' : 'flex';
   if (name === 'scan') {
     if (!currentUser) {
@@ -218,6 +218,45 @@ function goScreen(name) {
   if (name === 'wishlist') renderWishlist();
   if (name === 'home') renderRecentCards();
   updateStats();
+}
+
+// ===================== CONTACT FORM HANDLER =====================
+async function handleContactSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+  const btn = document.getElementById('contact-submit-btn');
+  const originalText = btn.textContent;
+  
+  // 상태 업데이트
+  btn.disabled = true;
+  btn.textContent = '보내는 중...';
+  
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+
+  try {
+    const response = await fetch('https://formspree.io/f/mbdakepa', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      showToast('✉️', '문의가 성공적으로 전달되었습니다!');
+      form.reset();
+      setTimeout(() => goScreen('profile'), 1500);
+    } else {
+      throw new Error('전송 실패');
+    }
+  } catch (error) {
+    showToast('❌', '전송 중 오류가 발생했습니다. 다시 시도해주세요.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 // ===================== CAMERA & CAPTURE =====================

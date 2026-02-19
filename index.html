@@ -321,8 +321,51 @@
         <div class="menu-text">앱 정보</div>
         <div class="menu-arrow">›</div>
       </div>
+      <div class="menu-item fade-up" onclick="goScreen('contact')" style="border-color: var(--gold-glow); background: rgba(201,168,76,0.05);">
+        <div class="menu-icon">🤝</div>
+        <div class="menu-text" style="color: var(--gold); font-weight: 700;">제휴 문의</div>
+        <div class="menu-arrow">›</div>
+      </div>
     </div>
     <div style="height:20px"></div>
+  </div>
+
+  <!-- ========== CONTACT FORM (NEW) ========== -->
+  <div class="screen" id="screen-contact">
+    <div class="status-bar"><span class="real-time-clock">9:41</span><span></span></div>
+    <div class="scan-header">
+      <div class="back-btn" onclick="goScreen('profile')">←</div>
+      <div class="screen-title">제휴 문의</div>
+    </div>
+    <div style="padding: 20px;">
+      <p style="font-size: 14px; color: var(--text2); margin-bottom: 24px; line-height: 1.6;">
+        TCGfinder와 함께 비즈니스 기회를 만들어갈 파트너를 찾습니다.<br>문의 내용을 남겨주시면 검토 후 연락드리겠습니다.
+      </p>
+      
+      <form id="contact-form" onsubmit="handleContactSubmit(event)">
+        <div style="margin-bottom: 18px;">
+          <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">성함 / 업체명</label>
+          <input type="text" name="name" required style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); outline:none;">
+        </div>
+        
+        <div style="margin-bottom: 18px;">
+          <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">이메일 주소</label>
+          <input type="email" name="email" required style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); outline:none;">
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">문의 제목</label>
+          <input type="text" name="subject" required style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); outline:none;">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label style="display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">문의 내용</label>
+          <textarea name="message" required style="width:100%; height:150px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text); outline:none; resize:none; line-height:1.5;"></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary" id="contact-submit-btn" style="width:100%; padding:16px; font-size:16px;">문의 보내기</button>
+      </form>
+    </div>
   </div>
 
   <!-- ========== GUIDE DETAIL ========== -->
