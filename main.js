@@ -63,6 +63,10 @@ let capturedImageData = null;
 let currentAiResult = null;
 let scanning = false;
 
+// 필터 및 정렬 상태 초기화 (카드 추가/삭제 오류 해결을 위해 필수)
+let currentFilter = 'all';
+let currentSort = 'newest';
+
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let myCollection = [];
 
