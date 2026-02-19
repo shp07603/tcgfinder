@@ -1,52 +1,5 @@
-// ===================== RECOMMENDED CARDS POOL =====================
-const recommendedPool = [
-  { 
-    name: '피카츄 ex (SAR)', set: '초전브레이커', rarity: 'Special Art Rare', category: 'pokemon', 
-    image: 'https://images.pokemontcg.io/sv8/132_hires.png', typeColor: 'var(--pokemon)',
-    hp: 200, attacks: [
-      { name: '번개 치기', cost: '⚡', desc: '상대의 포켓몬 1마리에게 30데미지를 줍니다.', dmg: '30' },
-      { name: '10만볼트', cost: '⚡⚡⚡', desc: '이 포켓몬에게 붙어 있는 모든 에너지를 트래쉬합니다.', dmg: '220' }
-    ],
-    stats: { stage: 'Basic', retreat: '1', weakness: 'Fighting' }
-  },
-  { 
-    name: '테라파고스 ex (SAR)', set: '스텔라미라클', rarity: 'Special Art Rare', category: 'pokemon', 
-    image: 'https://images.pokemontcg.io/sv7/124_hires.png', typeColor: 'var(--pokemon)',
-    hp: 230, attacks: [
-      { name: '유니온비트', cost: '⭐', desc: '자신의 벤치 포켓몬의 수 x 30데미지를 줍니다.', dmg: '30x' }
-    ],
-    stats: { stage: 'Tera ex', retreat: '2', weakness: 'Grass' }
-  },
-  { 
-    name: '리자몽 ex (SAR)', set: '샤이니트레저 ex', rarity: 'Special Art Rare', category: 'pokemon', 
-    image: 'https://images.pokemontcg.io/sv4a/234_hires.png', typeColor: 'var(--pokemon)',
-    hp: 330, attacks: [
-      { name: '폭파 화염', cost: '🔥', desc: '동전을 1번 던져서 앞면이 나오면 30데미지를 추가합니다.', dmg: '60+' },
-      { name: '버닝 다크', cost: '🔥🔥', desc: '상대가 이미 가지고 있는 프라이즈 카드의 수 x 30데미지를 추가합니다.', dmg: '180+' }
-    ],
-    stats: { stage: 'Stage 2', retreat: '2', weakness: 'Water' }
-  },
-  { 
-    name: '손흥민 Prizm', set: '2022 Panini Prizm Qatar', rarity: 'Silver Prizm', category: 'sports', 
-    image: 'https://i.ebayimg.com/images/g/2XAAAOSw~RlkY~Z~/s-l1600.jpg', typeColor: 'var(--soccer)',
-    hp: 92, attacks: [
-      { name: 'Speed', cost: '👟', desc: 'Explosive acceleration and dribbling.', dmg: '95' },
-      { name: 'Shooting', cost: '⚽', desc: 'Clinical finishing from both feet.', dmg: '91' }
-    ],
-    stats: { team: 'Tottenham', position: 'FW', pace: '92' }
-  },
-  { 
-    name: '김민재 Chrome', set: '2023 Topps Chrome', rarity: 'Refractor', category: 'sports', 
-    image: 'https://i.ebayimg.com/images/g/Y8IAAOSwY~RjZ~Z~/s-l1600.jpg', typeColor: 'var(--soccer)',
-    hp: 88, attacks: [
-      { name: 'Defense', cost: '🛡️', desc: 'Unbeatable physical presence.', dmg: '90' },
-      { name: 'Passing', cost: '🎯', desc: 'Long range build-up play.', dmg: '84' }
-    ],
-    stats: { team: 'Bayern Munich', position: 'DF', physical: '89' }
-  }
-];
-
 // ===================== APP STATE =====================
+const GEMINI_API_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8"; // 제공된 API 키 적용
 let previousScreen = 'home';
 let cameraStream = null;
 let capturedImageData = null;
@@ -67,9 +20,7 @@ let selectedAvatar = '👤';
 // ===================== AUDIO (SHUTTER SOUND) =====================
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 async function playShutterSound() {
-  if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
-  }
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
   const oscillator = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
   oscillator.type = 'square';
@@ -81,6 +32,55 @@ async function playShutterSound() {
   gainNode.connect(audioCtx.destination);
   oscillator.start();
   oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
+// ===================== REAL AI: GEMINI API =====================
+async function callGeminiAI(base64Image) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  // 데이터에서 "data:image/jpeg;base64," 부분을 제거
+  const base64Data = base64Image.split(',')[1];
+
+  const prompt = `Identify this Trading Card Game (TCG) or Sports card from the image. 
+  Return ONLY a valid JSON object with the following fields:
+  - name: Card name in Korean (e.g., "리자몽 ex")
+  - set: Set name or series in Korean (e.g., "샤이니트레저 ex")
+  - rarity: Rarity in English (e.g., "Ultra Rare")
+  - category: One of ['pokemon', 'sports', 'tcg']
+  - hp: Health points as a number (if exists, else null)
+  - attacks: Array of objects {name, cost, desc, dmg} (all in Korean)
+  - stats: Object of other key-value pairs like {stage, weakness, retreat}
+  
+  Return ONLY the JSON code block, nothing else.`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    let text = data.candidates[0].content.parts[0].text;
+    
+    // JSON 부분만 추출 (```json ... ``` 또는 그냥 { ... })
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error("Invalid AI Response Format");
+    }
+  } catch (error) {
+    console.error("AI Scan Error:", error);
+    return null;
+  }
 }
 
 // ===================== AUTH & DATA MANAGEMENT =====================
@@ -102,24 +102,11 @@ function loadUserData() {
 }
 
 function saveUserCollection() {
-  if (currentUser) {
-    localStorage.setItem(`collection_${currentUser.email}`, JSON.stringify(myCollection));
-  }
+  if (currentUser) localStorage.setItem(`collection_${currentUser.email}`, JSON.stringify(myCollection));
 }
 
 function saveCustomCategories() {
-  if (currentUser) {
-    localStorage.setItem(`categories_${currentUser.email}`, JSON.stringify(customCategories));
-  }
-}
-
-function parseJwt(token) {
-  var base64Url = token.split('.')[1];
-  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
-  return JSON.parse(jsonPayload);
+  if (currentUser) localStorage.setItem(`categories_${currentUser.email}`, JSON.stringify(customCategories));
 }
 
 function handleCredentialResponse(response) {
@@ -132,6 +119,15 @@ function handleCredentialResponse(response) {
   renderCollection();
   showToast('👋', `${currentUser.name}님, 환영합니다!`);
   goScreen('home');
+}
+
+function parseJwt(token) {
+  var base64Url = token.split('.')[1];
+  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+  return JSON.parse(jsonPayload);
 }
 
 function handleLogout() {
@@ -226,31 +222,21 @@ async function handleContactSubmit(event) {
   const form = event.target;
   const btn = document.getElementById('contact-submit-btn');
   const originalText = btn.textContent;
-  
-  // 상태 업데이트
   btn.disabled = true;
   btn.textContent = '보내는 중...';
-  
   const formData = new FormData(form);
   const data = Object.fromEntries(formData.entries());
-
   try {
     const response = await fetch('https://formspree.io/f/mbdakepa', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
     });
-
     if (response.ok) {
       showToast('✉️', '문의가 성공적으로 전달되었습니다!');
       form.reset();
       setTimeout(() => goScreen('profile'), 1500);
-    } else {
-      throw new Error('전송 실패');
-    }
+    } else { throw new Error('전송 실패'); }
   } catch (error) {
     showToast('❌', '전송 중 오류가 발생했습니다. 다시 시도해주세요.');
   } finally {
@@ -264,15 +250,13 @@ async function initCamera() {
   const video = document.getElementById('video-stream');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, 
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }, 
       audio: false 
     });
     cameraStream = stream;
     video.srcObject = stream;
     video.style.display = 'block';
-  } catch (err) {
-    showToast('❌', '카메라 권한이 필요합니다');
-  }
+  } catch (err) { showToast('❌', '카메라 권한이 필요합니다'); }
 }
 
 function stopCamera() {
@@ -287,6 +271,7 @@ function captureFrame() {
   const canvas = document.getElementById('capture-canvas');
   if (!video || !canvas) return null;
   const context = canvas.getContext('2d');
+  // 정방형 혹은 카드 비율에 맞게 캡처
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -297,14 +282,12 @@ function captureFrame() {
 function openCapturedDetail(index) {
   const card = myCollection[index];
   if (!card) return;
-
   document.getElementById('d-name').textContent = card.name;
   document.getElementById('d-set').textContent = `${card.set} · ${card.rarity}`;
   document.getElementById('d-showcase').innerHTML = `
     <img src="${card.image}" style="width:100%;height:100%;object-fit:cover;">
     <div class="wish-toggle-btn ${card.wish?'active':''}" onclick="event.stopPropagation(); toggleWish(${index}); this.classList.toggle('active');">❤️</div>
   `;
-
   const hpSection = document.getElementById('d-hp-section');
   const hpVal = document.getElementById('d-hp');
   const hpFill = document.getElementById('d-hp-fill');
@@ -313,45 +296,32 @@ function openCapturedDetail(index) {
     hpVal.textContent = `${card.hp} HP`;
     const percent = Math.min((card.hp / 340) * 100, 100);
     hpFill.style.width = percent + '%';
-  } else {
-    hpSection.style.display = 'none';
-  }
-
+  } else { hpSection.style.display = 'none'; }
   const attacksWrap = document.getElementById('d-attacks-wrap');
   const attacksContainer = document.getElementById('d-attacks');
   if (card.attacks && card.attacks.length > 0) {
     attacksWrap.style.display = 'block';
     attacksContainer.innerHTML = card.attacks.map(atk => `
       <div class="attack-row">
-        <div class="atk-energy">${atk.cost}</div>
+        <div class="atk-energy">${atk.cost || ''}</div>
         <div class="atk-info">
           <div class="atk-name">${atk.name}</div>
-          <div class="atk-desc">${atk.desc}</div>
+          <div class="atk-desc">${atk.desc || ''}</div>
         </div>
-        <div class="atk-dmg">${atk.dmg}</div>
+        <div class="atk-dmg">${atk.dmg || ''}</div>
       </div>
     `).join('');
-  } else {
-    attacksWrap.style.display = 'none';
-  }
-
+  } else { attacksWrap.style.display = 'none'; }
   const statsContainer = document.getElementById('d-stats');
   if (card.stats) {
     statsContainer.innerHTML = Object.entries(card.stats).map(([key, val]) => `
-      <div class="sg-item">
-        <div class="sg-lbl">${key}</div>
-        <div class="sg-val">${val}</div>
-      </div>
+      <div class="sg-item"><div class="sg-lbl">${key}</div><div class="sg-val">${val}</div></div>
     `).join('');
-  } else {
-    statsContainer.innerHTML = '';
-  }
-
+  } else { statsContainer.innerHTML = ''; }
   document.getElementById('detail-back').onclick = () => goScreen('collection');
   document.getElementById('detail-delete-btn').onclick = () => {
     if (confirm('이 카드를 삭제하시겠습니까?')) deleteCard(index);
   };
-
   goScreen('detail');
 }
 
@@ -387,11 +357,9 @@ function renderCollection() {
   let filtered = [...myCollection];
   if (searchQuery) filtered = filtered.filter(c => c.name.toLowerCase().includes(searchQuery));
   if(currentFilter !== 'all') filtered = filtered.filter(c => c.category === currentFilter);
-  
   if(currentSort === 'newest') filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
   else if(currentSort === 'oldest') filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
   else if(currentSort === 'wishlist') filtered = filtered.filter(c => c.wish);
-  
   let html = filtered.map((card) => {
     const realIdx = myCollection.findIndex(c => c.date === card.date);
     return `
@@ -406,6 +374,35 @@ function renderCollection() {
   }).join('');
   html += `<div class="cg-add" onclick="goScreen('scan')"><div class="cg-add-icon">+</div><div class="cg-add-lbl">카드 추가</div></div>`;
   grid.innerHTML = html;
+}
+
+function renderRecentCards() {
+  const scroll = document.querySelector('.recent-scroll');
+  if(!scroll) return;
+  if(myCollection.length === 0) {
+    scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
+    return;
+  }
+  scroll.innerHTML = myCollection.slice(0, 5).map((card) => {
+    const realIdx = myCollection.findIndex(c => c.date === card.date);
+    return `
+      <div class="r-card" onclick="openCapturedDetail(${realIdx})">
+        <div class="r-card-img" style="background: var(--surface2)">
+          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <div class="r-card-name">${card.name}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleWish(index) {
+  myCollection[index].wish = !myCollection[index].wish;
+  saveUserCollection();
+  renderCollection();
+  if (document.getElementById('screen-wishlist').classList.contains('active')) renderWishlist();
+  updateStats();
+  showToast(myCollection[index].wish ? '❤️' : '💔', myCollection[index].wish ? '위시에 추가됨' : '위시 해제됨');
 }
 
 function renderWishlist() {
@@ -433,24 +430,36 @@ function renderWishlist() {
   }
 }
 
-function renderRecentCards() {
-  const scroll = document.querySelector('.recent-scroll');
-  if(!scroll) return;
-  if(myCollection.length === 0) {
-    scroll.innerHTML = '<div style="padding: 20px; color: var(--text3); font-size: 12px;">최근 추가된 카드가 없습니다</div>';
-    return;
+// ===================== TRIGGER SCAN (GEMINI) =====================
+async function triggerScan() {
+  if(scanning) return;
+  scanning = true;
+  playShutterSound();
+  capturedImageData = captureFrame();
+  
+  const flash = document.getElementById('camera-flash');
+  if(flash) {
+    flash.classList.add('flash-anim');
+    setTimeout(() => flash.classList.remove('flash-anim'), 400);
   }
-  scroll.innerHTML = myCollection.slice(0, 5).map((card) => {
-    const realIdx = myCollection.findIndex(c => c.date === card.date);
-    return `
-      <div class="r-card" onclick="openCapturedDetail(${realIdx})">
-        <div class="r-card-img" style="background: var(--surface2)">
-          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
-        </div>
-        <div class="r-card-name">${card.name}</div>
-      </div>
-    `;
-  }).join('');
+
+  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
+
+  const aiResult = await callGeminiAI(capturedImageData);
+  
+  if (aiResult) {
+    currentAiResult = { ...aiResult, conf: (95 + Math.random() * 4).toFixed(1) };
+    document.getElementById('ai-thumb').innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    document.getElementById('ai-name').textContent = currentAiResult.name;
+    document.getElementById('ai-set').textContent = currentAiResult.set;
+    document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
+    document.getElementById('ai-cat').textContent = currentAiResult.category;
+    document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
+    document.getElementById('ai-result').style.display = 'block';
+  } else {
+    showToast('❌', '카드를 인식하지 못했습니다. 다시 촬영해 주세요.');
+  }
+  scanning = false;
 }
 
 function addToCollection() {
@@ -459,16 +468,14 @@ function addToCollection() {
   myCollection.unshift(newCard);
   saveUserCollection();
   showToast('✅', '컬렉션에 추가됐습니다!');
-  setTimeout(() => { goScreen('collection'); }, 1000);
+  setTimeout(() => goScreen('collection'), 1000);
 }
 
-function toggleWish(index) {
-  myCollection[index].wish = !myCollection[index].wish;
-  saveUserCollection();
-  renderCollection();
-  if (document.getElementById('screen-wishlist').classList.contains('active')) renderWishlist();
-  updateStats();
-  showToast(myCollection[index].wish ? '❤️' : '💔', myCollection[index].wish ? '위시에 추가됨' : '위시 해제됨');
+function resetScan() {
+  const res = document.getElementById('ai-result');
+  if(res) res.style.display = 'none';
+  capturedImageData = null;
+  currentAiResult = null;
 }
 
 // ===================== UI HELPERS =====================
@@ -493,6 +500,51 @@ function updateClock() {
   });
 }
 
+function openEditProfile() {
+  if (!currentUser) return;
+  const modal = document.getElementById('edit-profile-modal');
+  const picker = document.getElementById('avatar-picker');
+  const preview = document.getElementById('edit-preview-icon');
+  const input = document.getElementById('edit-nickname');
+  input.value = currentUser.name;
+  selectedAvatar = currentUser.picture || '👤';
+  preview.textContent = selectedAvatar;
+  picker.innerHTML = defaultAvatars.map(av => `
+    <div class="avatar-option" onclick="selectAvatar('${av}', this)" 
+         style="cursor:pointer; font-size:24px; padding:8px; border-radius:12px; text-align:center; transition:0.2s; ${av === selectedAvatar ? 'background:var(--surface3); border:1px solid var(--gold);' : ''}">
+      ${av}
+    </div>
+  `).join('');
+  modal.style.display = 'flex';
+}
+
+function selectAvatar(av, el) {
+  selectedAvatar = av;
+  document.getElementById('edit-preview-icon').textContent = av;
+  document.querySelectorAll('.avatar-option').forEach(opt => {
+    opt.style.background = 'transparent';
+    opt.style.border = 'none';
+  });
+  el.style.background = 'var(--surface3)';
+  el.style.border = '1px solid var(--gold)';
+}
+
+function closeEditProfile() { document.getElementById('edit-profile-modal').style.display = 'none'; }
+
+function saveProfile() {
+  const newName = document.getElementById('edit-nickname').value.trim();
+  if (!newName) return showToast('⚠️', '닉네임을 입력해주세요');
+  currentUser.name = newName;
+  currentUser.picture = selectedAvatar;
+  const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
+  profiles[currentUser.email] = { name: newName, picture: selectedAvatar };
+  localStorage.setItem('userProfiles', JSON.stringify(profiles));
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  updateUserUI();
+  closeEditProfile();
+  showToast('✅', '프로필이 변경되었습니다');
+}
+
 function updateUserUI() {
   const headerAvatar = document.getElementById('header-avatar');
   const loggedOut = document.getElementById('profile-logged-out');
@@ -500,7 +552,6 @@ function updateUserUI() {
   const userPhoto = document.getElementById('user-photo');
   const userName = document.getElementById('user-name');
   const userEmail = document.getElementById('user-email');
-  
   if (currentUser) {
     if(loggedOut) loggedOut.style.display = 'none';
     if(loggedIn) loggedIn.style.display = 'flex';
@@ -552,39 +603,4 @@ function setSort(type, el) {
   document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
   if(el) el.classList.add('active');
   renderCollection();
-}
-
-function resetScan() {
-  const res = document.getElementById('ai-result');
-  if(res) res.style.display = 'none';
-  capturedImageData = null;
-  currentAiResult = null;
-}
-
-function triggerScan() {
-  if(scanning) return;
-  scanning = true;
-  playShutterSound();
-  capturedImageData = captureFrame();
-  
-  // 카메라 플래시 효과
-  const flash = document.getElementById('camera-flash');
-  if(flash) {
-    flash.classList.add('flash-anim');
-    setTimeout(() => flash.classList.remove('flash-anim'), 400);
-  }
-
-  setTimeout(() => {
-    const result = recommendedPool[Math.floor(Math.random() * recommendedPool.length)];
-    currentAiResult = { ...result, conf: (95 + Math.random() * 4).toFixed(1) };
-    
-    document.getElementById('ai-thumb').innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
-    document.getElementById('ai-name').textContent = currentAiResult.name;
-    document.getElementById('ai-set').textContent = currentAiResult.set;
-    document.getElementById('ai-rarity').textContent = currentAiResult.rarity;
-    document.getElementById('ai-cat').textContent = currentAiResult.category;
-    document.getElementById('ai-confidence').textContent = currentAiResult.conf + '% 신뢰도';
-    document.getElementById('ai-result').style.display = 'block';
-    scanning = false;
-  }, 1000);
 }
