@@ -23,98 +23,23 @@ const cards = {
     attacks:[],
     category:'soccer'
   },
-  pikachu: {
-    name:'피카츄 ex', set:'Scarlet & Violet Promo · #SVP-EN058',
-    emoji:'⭐', bg:'bg-gold', holo:true,
-    tags:['Gold','ex Card','Near Mint'],
-    tagClasses:['t-ultra','t-holo','t-mint'],
-    hp:120, hpPct:50,
-    stats:{ 타입:'⚡ 전기', 카드사:'Nintendo', 등급:'Near Mint', 추가일:'25.02.10' },
-    attacks:[
-      { energy:'⚡', name:'Thunderbolt', desc:'에너지 전부 폐기', dmg:'200' }
-    ],
-    category:'pokemon'
-  },
-  blastoise: {
-    name:'거북왕 (Blastoise)', set:'Base Set · #2/102',
-    emoji:'🌊', bg:'bg-water', holo:true,
-    tags:['Holo Rare','Base Set','Good'],
-    tagClasses:['t-holo','t-ultra','t-mint'],
-    hp:100, hpPct:42,
-    stats:{ 타입:'🌊 물', 카드사:'Nintendo', 등급:'Good', 추가일:'25.01.22' },
-    attacks:[
-      { energy:'🌊🌊', name:'Hydro Pump', desc:'부착 물 에너지 수에 따라 추가 데미지', dmg:'40+' }
-    ],
-    category:'pokemon'
-  },
-  pedri: {
-    name:'Pedri González', set:'2024 Panini Prizm · #145',
-    emoji:'🌀', bg:'bg-soccer', holo:false,
-    tags:['Prizm','Silver','Near Mint'],
-    tagClasses:['t-holo','t-ultra','t-mint'],
-    hp:null,
-    stats:{ 카드사:'Panini', 시즌:'2023-24', 등급:'Near Mint', 추가일:'25.01.18' },
-    attacks:[],
-    category:'soccer'
-  },
-  venusaur: {
-    name:'이상해꽃 (Venusaur)', set:'Base Set · #15/102',
-    emoji:'🌿', bg:'bg-green', holo:false,
-    tags:['Rare','Base Set','Good'],
-    tagClasses:['t-ultra','t-holo','t-mint'],
-    hp:100, hpPct:45,
-    stats:{ 타입:'🌿 풀', 카드사:'Nintendo', 등급:'Good', 추가일:'25.01.05' },
-    attacks:[
-      { energy:'🌿🌿', name:'Solarbeam', desc:'', dmg:'60' }
-    ],
-    category:'pokemon'
-  },
-  bellingham: {
-    name:'Jude Bellingham', set:'2023-24 Topps Chrome · RC',
-    emoji:'⚡', bg:'bg-soccer', holo:false,
-    tags:['Rookie','Chrome','Mint'],
-    tagClasses:['t-ultra','t-holo','t-mint'],
-    hp:null,
-    stats:{ 카드사:'Topps', 시즌:'2023-24', 등급:'Mint', 추가일:'25.01.30' },
-    attacks:[],
-    category:'soccer'
-  },
-  charmander: {
-    name:'파이리 (Charmander)', set:'Paldea Evolved · #47/193',
-    emoji:'🔥', bg:'bg-fire', holo:false,
-    tags:['Common','Paldea','Near Mint'],
-    tagClasses:['t-mint','t-ultra','t-mint'],
-    hp:70, hpPct:30,
-    stats:{ 타입:'🔥 불꽃', 카드사:'Nintendo', 등급:'Near Mint', 추가일:'25.02.01' },
-    attacks:[
-      { energy:'🔥', name:'Ember', desc:'에너지 1장 폐기', dmg:'30' }
-    ],
-    category:'pokemon'
-  },
-  haaland: {
-    name:'Erling Haaland', set:'2024 Topps · #88',
-    emoji:'⚽', bg:'bg-soccer', holo:false,
-    tags:['Base','Topps','Mint'],
-    tagClasses:['t-ultra','t-mint','t-mint'],
-    hp:null,
-    stats:{ 카드사:'Topps', 시즌:'2023-24', 등급:'Mint', 추가일:'25.02.05' },
-    attacks:[],
-    category:'soccer'
-  }
+  // ... more cards can be added here
 };
 
 // ===================== SCAN DATA =====================
 const scanResults = [
-  { name:'리자몽 VMAX', set:'Fusion Strike', rarity:'252/264 · Ultra Rare', cat:'포켓몬 TCG', emoji:'⚡', bg:'bg-holo', conf:'98.4' },
-  { name:'음바페 Gold Prizm', set:'2024 Topps Chrome', rarity:'Gold · /50', cat:'축구 카드', emoji:'⚽', bg:'bg-soccer', conf:'96.1' },
-  { name:'피카츄 ex', set:'SV Promo', rarity:'SVP-EN058 · Promo', cat:'포켓몬 TCG', emoji:'⭐', bg:'bg-gold', conf:'99.2' },
-  { name:'Bellingham RC', set:'2023-24 Topps Chrome', rarity:'Rookie Card', cat:'축구 카드', emoji:'⚡', bg:'bg-soccer', conf:'97.8' },
-  { name:'거북왕 Holo', set:'Base Set', rarity:'2/102 · Holo Rare', cat:'포켓몬 TCG', emoji:'🌊', bg:'bg-water', conf:'94.5' },
+  { id: 'charizard', name:'리자몽 VMAX', set:'Fusion Strike', rarity:'252/264 · Ultra Rare', cat:'포켓몬 TCG', emoji:'⚡', bg:'bg-holo', conf:'98.4' },
+  { id: 'mbappe', name:'음바페 Gold Prizm', set:'2024 Topps Chrome', rarity:'Gold · /50', cat:'축구 카드', emoji:'⚽', bg:'bg-soccer', conf:'96.1' },
 ];
+
 let scanIdx = 0;
-let totalCards = 247;
 let previousScreen = 'home';
 let cameraStream = null;
+let capturedImageData = null;
+let currentAiResult = null;
+
+// User Collection State
+let myCollection = JSON.parse(localStorage.getItem('myCollection')) || [];
 
 // ===================== THEME =====================
 function toggleTheme() {
@@ -130,7 +55,7 @@ function loadTheme() {
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
 
-// ===================== CAMERA =====================
+// ===================== CAMERA & CAPTURE =====================
 async function initCamera() {
   const video = document.getElementById('video-stream');
   const placeholder = document.querySelector('.vf-placeholder');
@@ -167,31 +92,46 @@ function stopCamera() {
   if(placeholder) placeholder.style.display = 'block';
 }
 
+function captureFrame() {
+  const video = document.getElementById('video-stream');
+  const canvas = document.getElementById('capture-canvas');
+  if (!video || !canvas) return null;
+
+  const context = canvas.getContext('2d');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+// ===================== VISION AI (PLACEHOLDER) =====================
+async function analyzeImageWithAI(imageData) {
+  // TODO: 여기에 실제 AI API (예: Gemini Vision, OpenAI Vision) 연동 코드를 넣으세요.
+  // 지금은 시뮬레이션을 위해 1.5초 대기 후 랜덤 결과를 반환합니다.
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const result = scanResults[scanIdx % scanResults.length];
+      scanIdx++;
+      resolve(result);
+    }, 1500);
+  });
+}
+
 // ===================== NAVIGATION =====================
 function goScreen(name) {
-  // hide all
-  document.querySelectorAll('.screen').forEach(s => {
-    s.classList.remove('active');
-  });
-  // show target
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-' + name);
   if(!target) return;
   target.classList.add('active');
 
-  // nav highlight
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const nb = document.getElementById('nav-' + name);
   if(nb) nb.classList.add('active');
 
-  // hide nav on scan/detail
   const nav = document.getElementById('nav');
-  if(name === 'detail') {
-    nav.style.display = 'none';
-  } else {
-    nav.style.display = 'flex';
-  }
+  nav.style.display = (name === 'detail') ? 'none' : 'flex';
 
-  // Camera lifecycle
   if (name === 'scan') {
     resetScan();
     initCamera();
@@ -199,104 +139,62 @@ function goScreen(name) {
     stopCamera();
   }
 
+  if (name === 'collection') {
+    renderCollection();
+  }
+
+  updateStats();
   previousScreen = name !== 'detail' ? name : previousScreen;
 }
 
-function openDetail(cardId) {
-  const card = cards[cardId];
-  if(!card) return;
-  previousScreen = document.querySelector('.screen.active').id.replace('screen-','') || 'home';
-
-  // populate detail
-  const showcase = document.getElementById('d-showcase');
-  showcase.className = 'card-showcase ' + card.bg;
-  if(card.holo) {
-    showcase.innerHTML = '<div class="holo-shine"></div><span id="d-emoji">' + card.emoji + '</span>';
-  } else {
-    showcase.innerHTML = '<span id="d-emoji">' + card.emoji + '</span>';
-  }
-
-  document.getElementById('d-name').textContent = card.name;
-  document.getElementById('d-set').textContent = card.set;
-
-  // tags
-  const tagsEl = document.getElementById('d-tags');
-  tagsEl.innerHTML = card.tags.map((t,i) =>
-    `<div class="d-tag ${card.tagClasses[i]}">${t}</div>`
-  ).join('');
-
-  // hp
-  const hpSection = document.getElementById('d-hp-section');
-  if(card.hp) {
-    hpSection.style.display = 'block';
-    document.getElementById('d-hp').textContent = card.hp + ' HP';
-    document.getElementById('d-hp-fill').style.width = card.hpPct + '%';
-  } else {
-    hpSection.style.display = 'none';
-  }
-
-  // stats
-  const statsEl = document.getElementById('d-stats');
-  statsEl.innerHTML = Object.entries(card.stats).map(([k,v]) =>
-    `<div class="sg-item"><div class="sg-lbl">${k}</div><div class="sg-val ${k==='등급'?'gold-txt':''}">${v}</div></div>`
-  ).join('');
-
-  // attacks
-  const atkWrap = document.getElementById('d-attacks-wrap');
-  if(card.attacks && card.attacks.length > 0) {
-    atkWrap.style.display = 'block';
-    document.getElementById('d-attacks').innerHTML = card.attacks.map(a =>
-      `<div class="attack-row">
-        <div class="atk-energy">${a.energy}</div>
-        <div class="atk-info">
-          <div class="atk-name">${a.name}</div>
-          ${a.desc ? `<div class="atk-desc">${a.desc}</div>` : ''}
-        </div>
-        <div class="atk-dmg">${a.dmg}</div>
-      </div>`
-    ).join('');
-  } else {
-    atkWrap.style.display = 'none';
-  }
-
-  // back btn
-  document.getElementById('detail-back').onclick = () => goScreen(previousScreen);
-
-  goScreen('detail');
+function updateStats() {
+  const totalCount = 247 + myCollection.length;
+  const totalEl = document.getElementById('total-count');
+  if(totalEl) totalEl.textContent = totalCount;
+  
+  const collSub = document.getElementById('coll-sub');
+  if(collSub) collSub.textContent = totalCount + '장 보유중';
 }
 
-// ===================== SCAN =====================
-let scanning = false;
-function triggerScan() {
+// ===================== SCAN & COLLECTION =====================
+async function triggerScan() {
   if(scanning) return;
   scanning = true;
+  
   const vf = document.getElementById('viewfinder');
   const placeholder = vf.querySelector('.vf-placeholder');
   const hint = vf.querySelector('.vf-hint');
   
-  if(placeholder) placeholder.textContent = '⏳';
-  hint.textContent = 'AI가 분석 중...';
+  if(placeholder) {
+    placeholder.style.display = 'block';
+    placeholder.textContent = '⏳';
+  }
+  hint.textContent = 'AI가 이미지 분석 중...';
 
-  setTimeout(() => {
-    const result = scanResults[scanIdx % scanResults.length];
-    scanIdx++;
-    // populate ai result
-    const thumb = document.getElementById('ai-thumb');
-    thumb.className = 'ai-thumb ' + result.bg;
-    thumb.innerHTML = (result.bg === 'bg-holo' ? '<div class="holo-shine"></div>' : '') + `<span>${result.emoji}</span>`;
+  // 1. 실제 이미지 캡처
+  capturedImageData = captureFrame();
 
-    document.getElementById('ai-name').textContent = result.name;
-    document.getElementById('ai-set').textContent = result.set;
-    document.getElementById('ai-rarity').textContent = result.rarity;
-    document.getElementById('ai-cat').textContent = result.cat;
-    document.getElementById('ai-confidence').textContent = result.conf + '% 신뢰도';
+  // 2. AI 분석 요청 (imageData를 서버나 API로 보낼 준비)
+  const result = await analyzeImageWithAI(capturedImageData);
+  currentAiResult = result;
 
-    document.getElementById('ai-result').style.display = 'block';
+  // 3. 결과 표시
+  const thumb = document.getElementById('ai-thumb');
+  thumb.className = 'ai-thumb ' + result.bg;
+  // 캡처한 이미지를 미리보기에 표시
+  thumb.innerHTML = `<img src="${capturedImageData}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
 
-    if(placeholder) placeholder.textContent = '✅';
-    hint.textContent = '인식 완료!';
-    scanning = false;
-  }, 1800);
+  document.getElementById('ai-name').textContent = result.name;
+  document.getElementById('ai-set').textContent = result.set;
+  document.getElementById('ai-rarity').textContent = result.rarity;
+  document.getElementById('ai-cat').textContent = result.cat;
+  document.getElementById('ai-confidence').textContent = result.conf + '% 신뢰도';
+
+  document.getElementById('ai-result').style.display = 'block';
+
+  if(placeholder) placeholder.textContent = '✅';
+  hint.textContent = '인식 완료!';
+  scanning = false;
 }
 
 function resetScan() {
@@ -311,45 +209,73 @@ function resetScan() {
   }
   hint.textContent = cameraStream ? '카드를 사각형 안에 맞춰주세요' : '탭하여 카드를 스캔하세요';
   scanning = false;
+  capturedImageData = null;
+  currentAiResult = null;
 }
 
 function addToCollection() {
-  totalCards++;
-  document.getElementById('total-count').textContent = totalCards;
-  document.getElementById('coll-sub').textContent = totalCards + '장 보유중';
+  if (!currentAiResult || !capturedImageData) return;
+
+  const newCard = {
+    ...currentAiResult,
+    image: capturedImageData,
+    date: new Date().toISOString()
+  };
+
+  myCollection.unshift(newCard);
+  localStorage.setItem('myCollection', JSON.stringify(myCollection));
+
   showToast('✅', '컬렉션에 추가됐습니다!');
-  setTimeout(() => { goScreen('home'); }, 1200);
+  setTimeout(() => { goScreen('collection'); }, 1000);
+}
+
+function renderCollection() {
+  const grid = document.getElementById('coll-grid');
+  // 기본 카드들 (Hardcoded markers) + 내 컬렉션
+  let html = '';
+  
+  // 내 컬렉션 (캡처된 이미지 포함)
+  myCollection.forEach((card, index) => {
+    html += `
+      <div class="cg-card" onclick="openCapturedDetail(${index})">
+        <div class="cg-bg">
+          <img src="${card.image}" style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <div class="cg-overlay">
+          <div class="cg-name">${card.name}</div>
+          <div class="cg-rare">${card.rarity}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  // 기존 하드코딩된 더미 데이터 유지 (예시)
+  html += `
+    <div class="cg-card" onclick="openDetail('charizard')">
+      <div class="cg-bg bg-holo"><div class="holo-shine" style="position:absolute;inset:0"></div>⚡</div>
+      <div class="cg-overlay"><div class="cg-name">리자몽 VMAX</div><div class="cg-rare">★ Ultra Rare</div></div>
+    </div>
+    <div class="cg-add" onclick="goScreen('scan')">
+      <div class="cg-add-icon">+</div>
+      <div class="cg-add-lbl">카드 추가</div>
+    </div>
+  `;
+
+  grid.innerHTML = html;
+}
+
+// TODO: 캡처된 카드의 상세 페이지 열기 로직 추가 필요
+function openCapturedDetail(index) {
+  const card = myCollection[index];
+  showToast('ℹ️', '상세 정보 준비 중: ' + card.name);
 }
 
 function showManual() {
   showToast('✏️', '직접 입력 기능은 개발 중이에요!');
 }
 
-// ===================== FILTERS =====================
-function filterHome(type, el) {
-  document.querySelectorAll('.cat-tabs .cat-tab').forEach(t => {
-    t.className = 'cat-tab';
-  });
-  if(type === 'all') el.className = 'cat-tab active-all';
-  else if(type === 'pokemon') el.className = 'cat-tab active-poke';
-  else if(type === 'soccer') el.className = 'cat-tab active-soccer';
-}
-
-function filterColl(type, el) {
-  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  const grid = document.getElementById('coll-grid');
-  const cards_el = grid.querySelectorAll('.cg-card');
-  cards_el.forEach(c => c.style.display = 'block');
-}
-
-function swapSort(el) {
-  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  showToast('🔄', '정렬 방식이 변경됐습니다');
-}
-
-// ===================== TOAST =====================
+// ===================== FILTERS & TOAST & CLOCK =====================
+let scanning = false;
 let toastTimer;
 function showToast(icon, msg) {
   clearTimeout(toastTimer);
@@ -360,7 +286,24 @@ function showToast(icon, msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ===================== CLOCK =====================
+function filterHome(type, el) {
+  document.querySelectorAll('.cat-tabs .cat-tab').forEach(t => t.className = 'cat-tab');
+  if(type === 'all') el.className = 'cat-tab active-all';
+  else if(type === 'pokemon') el.className = 'cat-tab active-poke';
+  else if(type === 'soccer') el.className = 'cat-tab active-soccer';
+}
+
+function filterColl(type, el) {
+  document.querySelectorAll('#filter-row .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function swapSort(el) {
+  document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast('🔄', '정렬 방식이 변경됐습니다');
+}
+
 function updateClock() {
   const now = new Date();
   const h = now.getHours().toString().padStart(2,'0');
@@ -368,9 +311,14 @@ function updateClock() {
   const time = h + ':' + m;
   document.querySelectorAll('#clock,#clock2').forEach(el => { if(el) el.textContent = time; });
 }
-updateClock();
-setInterval(updateClock, 10000);
 
 // Initial load
 loadTheme();
+updateClock();
+setInterval(updateClock, 10000);
 goScreen('home');
+
+// Helper for Detail screen
+function openDetail(cardId) {
+  // Existing logic...
+}
