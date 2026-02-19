@@ -114,6 +114,58 @@ const scanResults = [
 let scanIdx = 0;
 let totalCards = 247;
 let previousScreen = 'home';
+let cameraStream = null;
+
+// ===================== THEME =====================
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  showToast(newTheme === 'dark' ? '🌙' : '☀️', `${newTheme === 'dark' ? '다크' : '라이트'} 모드로 변경됐습니다`);
+}
+
+function loadTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+// ===================== CAMERA =====================
+async function initCamera() {
+  const video = document.getElementById('video-stream');
+  const placeholder = document.querySelector('.vf-placeholder');
+  const hint = document.querySelector('.vf-hint');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false
+    });
+    cameraStream = stream;
+    video.srcObject = stream;
+    video.style.display = 'block';
+    if(placeholder) placeholder.style.display = 'none';
+    hint.textContent = '카드를 사각형 안에 맞춰주세요';
+  } catch (err) {
+    console.error("Camera error:", err);
+    showToast('❌', '카메라 권한이 필요합니다');
+    hint.textContent = '카메라 권한을 허용해주세요';
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('video-stream');
+  if(video) {
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+  const placeholder = document.querySelector('.vf-placeholder');
+  if(placeholder) placeholder.style.display = 'block';
+}
 
 // ===================== NAVIGATION =====================
 function goScreen(name) {
@@ -139,9 +191,12 @@ function goScreen(name) {
     nav.style.display = 'flex';
   }
 
-  // hide scan result when entering scan
-  if(name === 'scan') {
+  // Camera lifecycle
+  if (name === 'scan') {
     resetScan();
+    initCamera();
+  } else {
+    stopCamera();
   }
 
   previousScreen = name !== 'detail' ? name : previousScreen;
@@ -216,8 +271,11 @@ function triggerScan() {
   if(scanning) return;
   scanning = true;
   const vf = document.getElementById('viewfinder');
-  vf.querySelector('.vf-placeholder').textContent = '⏳';
-  vf.querySelector('.vf-hint').textContent = 'AI가 분석 중...';
+  const placeholder = vf.querySelector('.vf-placeholder');
+  const hint = vf.querySelector('.vf-hint');
+  
+  if(placeholder) placeholder.textContent = '⏳';
+  hint.textContent = 'AI가 분석 중...';
 
   setTimeout(() => {
     const result = scanResults[scanIdx % scanResults.length];
@@ -235,8 +293,8 @@ function triggerScan() {
 
     document.getElementById('ai-result').style.display = 'block';
 
-    vf.querySelector('.vf-placeholder').textContent = '✅';
-    vf.querySelector('.vf-hint').textContent = '인식 완료!';
+    if(placeholder) placeholder.textContent = '✅';
+    hint.textContent = '인식 완료!';
     scanning = false;
   }, 1800);
 }
@@ -244,10 +302,14 @@ function triggerScan() {
 function resetScan() {
   document.getElementById('ai-result').style.display = 'none';
   const vf = document.getElementById('viewfinder');
-  if(vf.querySelector('.vf-placeholder')) {
-    vf.querySelector('.vf-placeholder').textContent = '🃏';
-    vf.querySelector('.vf-hint').textContent = '탭하여 카드를 스캔하세요';
+  const placeholder = vf.querySelector('.vf-placeholder');
+  const hint = vf.querySelector('.vf-hint');
+  
+  if(placeholder) {
+    placeholder.textContent = '🃏';
+    placeholder.style.display = cameraStream ? 'none' : 'block';
   }
+  hint.textContent = cameraStream ? '카드를 사각형 안에 맞춰주세요' : '탭하여 카드를 스캔하세요';
   scanning = false;
 }
 
@@ -310,4 +372,5 @@ updateClock();
 setInterval(updateClock, 10000);
 
 // Initial load
+loadTheme();
 goScreen('home');
