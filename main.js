@@ -405,7 +405,9 @@ function updateClock() {
   const h = now.getHours().toString().padStart(2,'0');
   const m = now.getMinutes().toString().padStart(2,'0');
   const time = h + ':' + m;
-  document.querySelectorAll('#clock,#clock2').forEach(el => { if(el) el.textContent = time; });
+  document.querySelectorAll('.real-time-clock').forEach(el => {
+    el.textContent = time;
+  });
 }
 
 function showManual() {
@@ -415,6 +417,6 @@ function showManual() {
 // Initial load
 loadTheme();
 updateClock();
-setInterval(updateClock, 10000);
+setInterval(updateClock, 1000);
 fetchFeaturedCards(); // Initial fetch
 goScreen('home');
