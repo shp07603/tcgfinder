@@ -614,12 +614,20 @@ function updateUserUI() {
     if (loggedIn) loggedIn.style.display = 'flex';
     if (userName) userName.textContent = currentUser.name;
     if (userEmail) userEmail.textContent = currentUser.email;
-    if (userPhoto) userPhoto.innerHTML = `<img src="${currentUser.picture}" alt="Profile" referrerpolicy="no-referrer">`;
-    if (headerAvatar) headerAvatar.innerHTML = `<img src="${currentUser.picture}" alt="Profile" referrerpolicy="no-referrer">`;
+    
+    // 사진 주소가 있으면 고화질 파라미터 추가, 없으면 기본 이보지
+    const photoUrl = currentUser.picture ? currentUser.picture.replace(/=s\d+-c/g, "=s120-c") : null;
+    
+    const imgHtml = photoUrl 
+      ? `<img src="${photoUrl}" alt="Profile" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.innerHTML='👤'">`
+      : '👤';
+
+    if (userPhoto) userPhoto.innerHTML = imgHtml;
+    if (headerAvatar) headerAvatar.innerHTML = imgHtml;
   } else {
     if (loggedOut) loggedOut.style.display = 'flex';
     if (loggedIn) loggedIn.style.display = 'none';
-    if (headerAvatar) headerAvatar.textContent = '👤';
+    if (headerAvatar) headerAvatar.innerHTML = '👤'; // 이모지 텍스트로 초기화
     renderGoogleButton();
   }
 }
