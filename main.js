@@ -1,4 +1,5 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
+// Version: 1.0.1 - AI Model Upgrade & Path Fix
 // 보안을 위해 기본 키를 분할하여 결합 (단순 크롤링 방지)
 const _k1 = "AIzaSyB9LT3y2aM";
 const _k2 = "OkMbFJOHmAa020P";
