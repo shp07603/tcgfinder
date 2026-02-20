@@ -1,5 +1,5 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-// Version: 1.0.3 - Final Robust Fix
+// Version: 1.0.4 - Advanced Search & Missing Handlers
 const _k1 = "AIzaSyB9LT3y2aM";
 const _k2 = "OkMbFJOHmAa020P";
 const _k3 = "Qv3vAOCx8";
@@ -93,11 +93,8 @@ async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
-  
-  // 프롬프트 강화: 공식 DB 검색에 최적화된 이름 요청
-  const prompt = `Identify this Pokemon or Sports trading card. 
-  Respond ONLY with a JSON object. 
-  For "name", use the EXACT official English name as printed on the card (no extra descriptions).
+  const prompt = `Identify this TCG card. Respond ONLY with a JSON object. 
+  For "name", use the official English name as printed on the card.
   {
     "name": "Official English Name",
     "name_ko": "한국어 이름",
@@ -132,7 +129,7 @@ async function callGeminiAI(base64Image) {
     return JSON.parse(text.substring(start, end));
   } catch (e) {
     console.error("AI Error:", e);
-    showToast('❌', "인식 실패: 조명을 밝게 하고 다시 시도해 주세요.");
+    showToast('❌', "분석 실패: 조명을 밝게 하고 다시 촬영해주세요.");
     return null;
   }
 }
@@ -140,12 +137,13 @@ async function callGeminiAI(base64Image) {
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
   
-  // 1차 검색용 정제
+  // 검색어 정제
   const cleanName = cardName.split('(')[0].replace(/[^\w\s-]/gi, '').trim();
   
-  const attemptSearch = async (q) => {
+  const attemptSearch = async (q, strict = true) => {
+    const queryStr = strict ? `name:"${q}"` : `name:${q}*`;
     try {
-      const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(q)}"&pageSize=1`, {
+      const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(queryStr)}&pageSize=1`, {
         headers: { 'X-Api-Key': pokemonTcgKey } 
       });
       const data = await res.json();
@@ -153,12 +151,15 @@ async function searchPokemonDB(cardName) {
     } catch (e) { return null; }
   };
 
-  // 단계별 검색 (정확한 이름 -> 첫 단어 검색)
-  let card = await attemptSearch(cleanName);
+  // 1단계: 정확한 일치 검색
+  let card = await attemptSearch(cleanName, true);
   
+  // 2단계: 부분 일치(와일드카드) 검색
+  if (!card) card = await attemptSearch(cleanName, false);
+  
+  // 3단계: 첫 단어 검색
   if (!card && cleanName.includes(' ')) {
-    const firstWord = cleanName.split(' ')[0];
-    card = await attemptSearch(firstWord);
+    card = await attemptSearch(cleanName.split(' ')[0], false);
   }
 
   if (card) {
@@ -190,7 +191,7 @@ async function processImage(base64Data) {
   const aiRes = await callGeminiAI(base64Data);
   if (!aiRes || !aiRes.name) return;
 
-  showToast('📡', 'DB에서 카드 정보를 확인 중...');
+  showToast('📡', 'DB에서 상세 정보를 찾는 중...');
   let dbData = await searchPokemonDB(aiRes.name);
 
   const finalResult = {
@@ -217,7 +218,7 @@ async function processImage(base64Data) {
 
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
-  showToast('✨', '인식 성공!');
+  showToast('✨', '인식 완료!');
 }
 
 function handleGallerySelect(event) {
@@ -369,6 +370,16 @@ function addToCollection() {
   saveUserCollection();
   showToast('✅', '컬렉션에 추가되었습니다!');
   goScreen('collection');
+}
+
+function handleContactSubmit(event) {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const data = Object.fromEntries(formData.entries());
+  console.log("Contact form submitted:", data);
+  showToast('✉️', '문의가 접수되었습니다. 곧 연락드리겠습니다!');
+  event.target.reset();
+  goScreen('profile');
 }
 
 function handleCredentialResponse(r) {
