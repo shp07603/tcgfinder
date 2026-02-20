@@ -1,5 +1,5 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-// Version: 1.0.4 - Advanced Search & Missing Handlers
+// Version: 1.0.5 - Enhanced Capture & Debugging
 const _k1 = "AIzaSyB9LT3y2aM";
 const _k2 = "OkMbFJOHmAa020P";
 const _k3 = "Qv3vAOCx8";
@@ -66,35 +66,74 @@ async function initCamera() {
     });
     cameraStream = stream;
     video.srcObject = stream;
-    video.onloadedmetadata = () => video.play();
+    video.onloadedmetadata = () => {
+      console.log("Video metadata loaded:", video.videoWidth, "x", video.videoHeight);
+      video.play();
+    };
     video.style.display = 'block';
-  } catch (err) { showToast('❌', '카메라 권한을 허용해 주세요.'); }
+  } catch (err) { 
+    console.error("Camera init error:", err);
+    showToast('❌', '카메라 권한을 허용해 주세요.'); 
+  }
 }
 
 function stopCamera() {
-  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    console.log("Camera stopped");
+  }
 }
 
 function captureFrame() {
   const video = document.getElementById('video-stream');
   const canvas = document.getElementById('capture-canvas');
-  if (!video || video.videoWidth === 0 || !canvas) return null;
+  if (!video || !canvas) return null;
+
+  // 비디오 상태 엄격 체크
+  if (video.paused || video.ended || video.readyState < 2 || video.videoWidth === 0) {
+    console.warn("Capture aborted: Video not ready", { 
+      paused: video.paused, 
+      readyState: video.readyState, 
+      vw: video.videoWidth 
+    });
+    return null;
+  }
+
   const ctx = canvas.getContext('2d');
-  const vw = video.videoWidth, vh = video.videoHeight;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  
   let tw, th, sx, sy;
-  if (vw / vh > 3 / 4) { th = vh; tw = vh * (3 / 4); sx = (vw - tw) / 2; sy = 0; }
-  else { tw = vw; th = vw * (4 / 3); sx = 0; sy = (vh - th) / 2; }
-  canvas.width = 720; canvas.height = 960;
-  ctx.drawImage(video, sx, sy, tw, th, 0, 0, 720, 960);
-  return canvas.toDataURL('image/jpeg', 0.8);
+  if (vw / vh > 3 / 4) {
+    th = vh; tw = vh * (3 / 4);
+    sx = (vw - tw) / 2; sy = 0;
+  } else {
+    tw = vw; th = vw * (4 / 3);
+    sx = 0; sy = (vh - th) / 2;
+  }
+
+  canvas.width = 720; 
+  canvas.height = 960;
+  
+  try {
+    ctx.drawImage(video, sx, sy, tw, th, 0, 0, 720, 960);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    if (dataUrl.length < 1000) return null;
+    return dataUrl;
+  } catch (e) {
+    console.error("Capture Error:", e);
+    return null;
+  }
 }
 
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+  
   const prompt = `Identify this TCG card. Respond ONLY with a JSON object. 
-  For "name", use the official English name as printed on the card.
+  For "name", use the official English name printed on the card.
   {
     "name": "Official English Name",
     "name_ko": "한국어 이름",
@@ -121,23 +160,21 @@ async function callGeminiAI(base64Image) {
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-    if (!data.candidates || !data.candidates[0].content) throw new Error("이미지 분석 실패");
+    if (!data.candidates || !data.candidates[0].content) throw new Error("AI 응답 없음");
 
     let text = data.candidates[0].content.parts[0].text;
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}') + 1;
     return JSON.parse(text.substring(start, end));
   } catch (e) {
-    console.error("AI Error:", e);
-    showToast('❌', "분석 실패: 조명을 밝게 하고 다시 촬영해주세요.");
+    console.error("Gemini API Error:", e);
+    showToast('❌', "인식 실패: 조명을 더 밝게 하고 다시 시도해주세요.");
     return null;
   }
 }
 
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
-  
-  // 검색어 정제
   const cleanName = cardName.split('(')[0].replace(/[^\w\s-]/gi, '').trim();
   
   const attemptSearch = async (q, strict = true) => {
@@ -151,16 +188,9 @@ async function searchPokemonDB(cardName) {
     } catch (e) { return null; }
   };
 
-  // 1단계: 정확한 일치 검색
   let card = await attemptSearch(cleanName, true);
-  
-  // 2단계: 부분 일치(와일드카드) 검색
   if (!card) card = await attemptSearch(cleanName, false);
-  
-  // 3단계: 첫 단어 검색
-  if (!card && cleanName.includes(' ')) {
-    card = await attemptSearch(cleanName.split(' ')[0], false);
-  }
+  if (!card && cleanName.includes(' ')) card = await attemptSearch(cleanName.split(' ')[0], false);
 
   if (card) {
     return {
@@ -176,9 +206,26 @@ async function searchPokemonDB(cardName) {
 
 async function triggerScan() {
   if (scanning) return;
+  
+  // 시각적 피드백: 셔터 깜빡임
+  const flash = document.getElementById('camera-flash');
+  if (flash) {
+    flash.style.display = 'block';
+    setTimeout(() => flash.style.display = 'none', 100);
+  }
+
   scanning = true;
+  console.log("Scanning started...");
+
   const img = captureFrame();
-  if (!img) { showToast('⚠️', '카메라가 준비되지 않았습니다.'); scanning = false; return; }
+  if (!img) {
+    console.warn("Capture failed - camera might not be ready");
+    showToast('⚠️', '카메라 준비 중입니다. 1~2초 후 다시 눌러주세요.');
+    scanning = false;
+    return;
+  }
+
+  console.log("Image captured, size:", Math.round(img.length / 1024), "KB");
   await processImage(img);
   scanning = false;
 }
@@ -186,19 +233,24 @@ async function triggerScan() {
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
-  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
+  showToast('🔍', 'AI 분석 중...');
   
+  console.log("Calling Gemini...");
   const aiRes = await callGeminiAI(base64Data);
-  if (!aiRes || !aiRes.name) return;
+  if (!aiRes || !aiRes.name) {
+    console.error("AI identification failed");
+    return;
+  }
 
-  showToast('📡', 'DB에서 상세 정보를 찾는 중...');
+  console.log("AI Result:", aiRes.name);
+  showToast('📡', '데이터베이스 대조 중...');
   let dbData = await searchPokemonDB(aiRes.name);
 
   const finalResult = {
     name: aiRes.name_ko || aiRes.name,
     name_en: aiRes.name,
-    set: aiRes.set,
-    category: aiRes.category,
+    set: aiRes.set || "Unknown Set",
+    category: aiRes.category || "Pokemon",
     rarity: dbData ? dbData.rarity : "Unknown",
     hp: dbData ? dbData.hp : 0,
     attacks: dbData ? dbData.attacks : [],
@@ -206,15 +258,20 @@ async function processImage(base64Data) {
   };
 
   currentAiResult = finalResult;
-  document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+  
+  const thumb = document.getElementById('ai-thumb');
+  if (thumb) thumb.innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+  
   document.getElementById('ai-name').textContent = finalResult.name;
-  document.getElementById('ai-set').textContent = finalResult.set || "";
+  document.getElementById('ai-set').textContent = finalResult.set;
   document.getElementById('ai-rarity').textContent = finalResult.rarity;
   document.getElementById('ai-cat').textContent = finalResult.category;
   
   const tag = document.querySelector('.ai-tag');
-  tag.innerHTML = dbData ? "✦ DB 검증됨 ✅" : "✦ AI 인식 결과";
-  tag.style.color = dbData ? "var(--green)" : "var(--gold)";
+  if (tag) {
+    tag.innerHTML = dbData ? "✦ DB 검증됨 ✅" : "✦ AI 인식 결과";
+    tag.style.color = dbData ? "var(--green)" : "var(--gold)";
+  }
 
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
