@@ -91,7 +91,9 @@ function captureFrame() {
 
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  // 최신 키를 매번 가져오도록 보장
+  const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
   const prompt = `Identify this TCG card. Respond ONLY with a JSON object.
   {
     "name": "Full English Name for Database Search",
