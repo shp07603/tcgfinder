@@ -333,8 +333,136 @@ function handleCredentialResponse(r) {
   } catch (e) { console.error("Auth error:", e); }
 }
 
-// ===================== 9. INITIALIZATION =====================
+function handleLogout() {
+  if (confirm('로그아웃 하시겠습니까?')) {
+    currentUser = null;
+    localStorage.removeItem('currentUser');
+    loadUserData();
+    updateUserUI();
+    goScreen('home');
+    showToast('👋', '로그아웃 되었습니다.');
+  }
+}
+
+// ===================== 9. PROFILE ACTIONS =====================
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const target = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', target);
+  localStorage.setItem('theme', target);
+  showToast(target === 'dark' ? '🌙' : '☀️', `${target === 'dark' ? '다크' : '라이트'} 모드로 변경됨`);
+}
+
+function shareCollection() {
+  if (myCollection.length === 0) {
+    showToast('⚠️', '공유할 카드가 없습니다.');
+    return;
+  }
+  
+  if (navigator.share) {
+    navigator.share({
+      title: '나의 TCG 컬렉션',
+      text: `TCGfinder에서 나의 ${myCollection.length}장의 카드를 구경해보세요!`,
+      url: window.location.href
+    })
+    .then(() => showToast('📤', '공유 완료!'))
+    .catch((error) => console.log('Error sharing', error));
+  } else {
+    showToast('❌', '이 기기에서는 공유 기능이 지원되지 않습니다.');
+  }
+}
+
+async function requestFullPermissions() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream.getTracks().forEach(track => track.stop());
+    showToast('✅', '카메라 권한이 허용되었습니다.');
+  } catch (err) {
+    showToast('❌', '권한 요청에 실패했습니다.');
+  }
+}
+
+// ===================== 11. PROFILE EDITING =====================
+function openEditProfile() {
+  if (!currentUser) return;
+  const modal = document.getElementById('edit-profile-modal');
+  const nickInput = document.getElementById('edit-nickname');
+  const preview = document.getElementById('edit-preview-icon');
+  
+  if (modal && nickInput && preview) {
+    nickInput.value = currentUser.name || '';
+    preview.textContent = currentUser.picture || '👤';
+    window.selectedAvatar = currentUser.picture || '👤';
+    
+    // Render avatar options
+    const avatars = ['👤', '🐱', '🐶', '🦊', '🦁', '🐸', '🤖', '👾', '⭐', '🔥', '⚡', '💎', '🦄', '🐲', '👻'];
+    const picker = document.getElementById('avatar-picker');
+    if (picker) {
+      picker.innerHTML = avatars.map(a => `
+        <div class="avatar-option" onclick="selectAvatar('${a}')" style="cursor:pointer; font-size:24px; padding:5px; border-radius:50%; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">${a}</div>
+      `).join('');
+    }
+    
+    modal.style.display = 'flex';
+  }
+}
+
+function closeEditProfile() {
+  const modal = document.getElementById('edit-profile-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectAvatar(icon) {
+  window.selectedAvatar = icon;
+  const preview = document.getElementById('edit-preview-icon');
+  if (preview) {
+    preview.textContent = icon;
+    // Add a little pop animation
+    preview.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.2)' },
+      { transform: 'scale(1)' }
+    ], { duration: 300 });
+  }
+}
+
+function saveProfile() {
+  const nickInput = document.getElementById('edit-nickname');
+  if (!nickInput) return;
+  
+  const newName = nickInput.value.trim();
+  if (!newName) {
+    showToast('⚠️', '닉네임을 입력해주세요.');
+    return;
+  }
+  
+  const newPic = window.selectedAvatar || currentUser.picture || '👤';
+  
+  // Update current user
+  currentUser.name = newName;
+  currentUser.picture = newPic;
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  
+  // Save to persistent profile storage
+  try {
+    const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
+    profiles[currentUser.email] = { name: newName, picture: newPic };
+    localStorage.setItem('userProfiles', JSON.stringify(profiles));
+  } catch (e) {
+    console.error("Profile save error:", e);
+  }
+  
+  updateUserUI();
+  closeEditProfile();
+  showToast('✅', '프로필이 수정되었습니다.');
+}
+
+// ===================== 10. INITIALIZATION =====================
 window.onload = () => {
+  // Load saved theme
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+
   if (typeof google !== 'undefined') {
     google.accounts.id.initialize({ 
       client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com", 
