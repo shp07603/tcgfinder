@@ -1,5 +1,9 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-const GEMINI_API_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8";
+// 기본 키 (사용자 설정이 없을 경우 사용)
+const DEFAULT_GEMINI_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8";
+let geminiApiKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
+const pokemonTcgKey = "706eeb3d-41bf-49e0-9e9d-acca2c909f1e";
+
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let myCollection = [];
 let customCategories = [];
@@ -21,7 +25,7 @@ function showToast(icon, msg) {
   tIcon.textContent = icon;
   tMsg.textContent = msg;
   t.classList.add('show');
-  window.toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  window.toastTimer = setTimeout(() => t.classList.remove('show'), 4000); // 4초로 연장
 }
 
 function updateClock() {
@@ -69,7 +73,7 @@ async function initCamera() {
     video.onloadedmetadata = () => video.play();
     video.style.display = 'block';
   } catch (err) {
-    showToast('❌', '카메라를 켤 수 없습니다.');
+    showToast('❌', '카메라 권한을 허용해 주세요.');
   }
 }
 
@@ -89,7 +93,6 @@ function captureFrame() {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   
-  // 3:4 중앙 크롭 계산
   let tw, th, sx, sy;
   if (vw / vh > 3 / 4) {
     th = vh; tw = vh * (3 / 4);
@@ -99,31 +102,29 @@ function captureFrame() {
     sx = 0; sy = (vh - th) / 2;
   }
 
-  canvas.width = 600; canvas.height = 800;
-  ctx.drawImage(video, sx, sy, tw, th, 0, 0, 600, 800);
-  return canvas.toDataURL('image/jpeg', 0.8);
+  canvas.width = 800; canvas.height = 1066; // 조금 더 고해상도로 캡처
+  ctx.drawImage(video, sx, sy, tw, th, 0, 0, 800, 1066);
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 
-// 1단계: Gemini Vision으로 기본 정보 식별
+// 1단계: Gemini Vision 최적화 호출
 async function callGeminiAI(base64Image) {
-  if (!base64Image || !base64Image.includes(',')) {
-    console.error("Invalid image data");
-    return null;
-  }
+  if (!base64Image || !base64Image.includes(',')) return null;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const prompt = `Identify this trading card. Return STRICT JSON without Markdown.
-  Fields:
-  - "name": Card Name (English only, e.g., "Charizard")
-  - "name_ko": Card Name (Korean, if unknown use English)
-  - "set": Set Name
-  - "id": Card Number (e.g., "4/102")
-  - "category": "pokemon" or "sports" or "tcg"`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  
+  const prompt = `You are a TCG Expert. Identify the card in the image.
+  Return ONLY a JSON object with these EXACT fields:
+  {
+    "name": "English Card Name",
+    "name_ko": "Korean Card Name",
+    "set": "Set Name",
+    "category": "pokemon"
+  }
+  Do not include markdown or explanations. If it is not a card, return {"error": "not_a_card"}`;
 
   try {
     const rawData = base64Image.split(',')[1];
-    console.log("AI 분석 요청 중...");
-
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -141,43 +142,41 @@ async function callGeminiAI(base64Image) {
       })
     });
 
-    const data = await response.json();
-    console.log("AI 응답:", data);
+    if (response.status === 403) throw new Error("API 키가 잘못되었거나 제한되었습니다.");
+    if (response.status === 429) throw new Error("API 사용량이 초과되었습니다. 잠시 후 다시 시도하세요.");
 
+    const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 결과가 없습니다.");
+    
+    if (!data.candidates || !data.candidates[0].content) {
+      const reason = data.candidates[0]?.finishReason;
+      if (reason === "SAFETY") throw new Error("이미지가 안전 필터에 의해 차단되었습니다. 밝은 곳에서 다시 찍어주세요.");
+      throw new Error("AI가 카드를 식별하지 못했습니다.");
+    }
 
     let text = data.candidates[0].content.parts[0].text;
-    
-    // JSON만 추출
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("데이터 파싱 실패");
+    if (!match) throw new Error("결과 데이터 파싱 실패");
     
-    return JSON.parse(match[0]);
+    const result = JSON.parse(match[0]);
+    if (result.error) throw new Error("카드 이미지가 아닙니다.");
+    
+    return result;
   } catch (e) {
-    console.error("AI 에러 상세:", e);
-    showToast('❌', `인식 실패: ${e.message}`);
+    console.error("AI Error:", e);
+    showToast('❌', e.message);
     return null;
   }
 }
 
-// 2단계: 외부 데이터베이스(PokéAPI TCG)에서 검증 및 상세 데이터 확보
+// 2단계: 외부 DB 연동
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
   try {
-    console.log(`DB 검색 시작: ${cardName}`);
     const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${cardName}"&pageSize=1`, {
-      headers: { 'X-Api-Key': '706eeb3d-41bf-49e0-9e9d-acca2c909f1e' } 
+      headers: { 'X-Api-Key': pokemonTcgKey } 
     });
-    
-    if (!res.ok) {
-      console.warn(`TCG API 응답 이상: ${res.status}`);
-      return null;
-    }
-
     const data = await res.json();
-    console.log("TCG API 응답 데이터:", data);
-
     if (data.data && data.data.length > 0) {
       const card = data.data[0];
       return {
@@ -188,19 +187,15 @@ async function searchPokemonDB(cardName) {
         verified: true
       };
     }
-  } catch (e) {
-    console.warn("DB Search failed:", e);
-  }
+  } catch (e) { console.warn("DB Search failed", e); }
   return null;
 }
 
 async function triggerScan() {
   if (scanning) return;
   scanning = true;
-  
   const img = captureFrame();
   if (!img) { showToast('⚠️', '카메라가 준비되지 않았습니다.'); scanning = false; return; }
-  
   await processImage(img);
   scanning = false;
 }
@@ -208,99 +203,62 @@ async function triggerScan() {
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
-  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
+  showToast('🔍', 'AI 분석 중...');
   
-  // 1. AI Vision 인식
   const aiRes = await callGeminiAI(base64Data);
-  
-  if (!aiRes || !aiRes.name) {
-    showToast('❌', '인식 실패. 카드가 잘 보이게 다시 찍어주세요.');
-    return;
-  }
+  if (!aiRes || !aiRes.name) return;
 
-  showToast('📡', '데이터베이스 확인 중...');
-  
-  // 2. DB 교차 검증 (포켓몬인 경우)
-  let dbData = null;
-  if (aiRes.category.toLowerCase().includes('pokemon')) {
-    dbData = await searchPokemonDB(aiRes.name);
-  }
+  showToast('📡', '데이터베이스 교차 검증 중...');
+  let dbData = await searchPokemonDB(aiRes.name);
 
-  // 3. 데이터 병합
   const finalResult = {
-    name: aiRes.name_ko || aiRes.name, // 한국어 이름 우선
+    name: aiRes.name_ko || aiRes.name,
     name_en: aiRes.name,
     set: aiRes.set,
     category: aiRes.category,
-    rarity: dbData ? dbData.rarity : (aiRes.rarity || "Unknown"),
+    rarity: dbData ? dbData.rarity : "Unknown",
     hp: dbData ? dbData.hp : 0,
     attacks: dbData ? dbData.attacks : [],
-    image: base64Data, // 기본은 촬영본, 옵션으로 고화질 DB이미지 사용 가능
-    dbImage: dbData ? dbData.image : null
+    image: base64Data
   };
 
   currentAiResult = finalResult;
   
-  // UI 표시
   document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
   document.getElementById('ai-name').textContent = finalResult.name;
   document.getElementById('ai-set').textContent = finalResult.set || "";
   document.getElementById('ai-rarity').textContent = finalResult.rarity;
   document.getElementById('ai-cat').textContent = finalResult.category;
   
-  // DB 검증 뱃지
   const tag = document.querySelector('.ai-tag');
-  if (dbData) {
-    tag.innerHTML = "✦ DB 검증됨 ✅";
-    tag.style.color = "var(--green)";
-    tag.style.background = "rgba(52, 211, 153, 0.15)";
-  } else {
-    tag.innerHTML = "✦ AI 인식 결과";
-    tag.style.color = "var(--gold)";
-    tag.style.background = "var(--gold-dim)";
-  }
+  tag.innerHTML = dbData ? "✦ DB 검증됨 ✅" : "✦ AI 인식 결과";
+  tag.style.color = dbData ? "var(--green)" : "var(--gold)";
 
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
-  showToast('✨', '분석 완료!');
+  showToast('✨', '인식 완료!');
 }
 
 function handleGallerySelect(event) {
   const file = event.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
-  reader.onload = async (e) => {
+  reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
-      // Resize/Crop to 600x800 similar to camera
-      canvas.width = 600;
-      canvas.height = 800;
-      
-      const iw = img.width;
-      const ih = img.height;
+      canvas.width = 800; canvas.height = 1066;
+      const iw = img.width, ih = img.height;
       let tw, th, sx, sy;
-      
-      if (iw / ih > 3 / 4) {
-        th = ih; tw = ih * (3 / 4);
-        sx = (iw - tw) / 2; sy = 0;
-      } else {
-        tw = iw; th = iw * (4 / 3);
-        sx = 0; sy = (ih - th) / 2;
-      }
-      
-      ctx.drawImage(img, sx, sy, tw, th, 0, 0, 600, 800);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      processImage(dataUrl);
+      if (iw / ih > 3 / 4) { th = ih; tw = ih * (3 / 4); sx = (iw - tw) / 2; sy = 0; }
+      else { tw = iw; th = iw * (4 / 3); sx = 0; sy = (ih - th) / 2; }
+      ctx.drawImage(img, sx, sy, tw, th, 0, 0, 800, 1066);
+      processImage(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
-  
-  // Reset input
   event.target.value = '';
 }
 
@@ -364,16 +322,10 @@ function renderGoogleButton() {
 function updateStats() {
   const total = myCollection.length;
   const wish = myCollection.filter(c => c.wish).length;
-  
-  const elTotal = document.getElementById('total-count');
-  const elSub = document.getElementById('coll-sub');
-  const elProfT = document.getElementById('prof-total');
-  const elProfW = document.getElementById('prof-wish');
-
-  if (elTotal) elTotal.textContent = total;
-  if (elSub) elSub.textContent = `${total}장 보유중`;
-  if (elProfT) elProfT.textContent = total;
-  if (elProfW) elProfW.textContent = wish;
+  if (document.getElementById('total-count')) document.getElementById('total-count').textContent = total;
+  if (document.getElementById('coll-sub')) document.getElementById('coll-sub').textContent = `${total}장 보유중`;
+  if (document.getElementById('prof-total')) document.getElementById('prof-total').textContent = total;
+  if (document.getElementById('prof-wish')) document.getElementById('prof-wish').textContent = wish;
 }
 
 // ===================== 6. RENDER LISTS =====================
@@ -401,7 +353,7 @@ function renderCategoryChips() {
   if (!row) return;
   row.innerHTML = `
     <div class="chip ${currentFilter==='all'?'active':''}" onclick="setFilter('all')">전체</div>
-    <div class="chip ${currentFilter==='pokemon'?'active':''}" onclick="setFilter('pokemon')">포켓몬</div>
+    <div class="chip ${currentFilter==='pokemon'?'active':''}" onclick="setFilter('pokemon') || setFilter('pokémon')">포켓몬</div>
     <div class="chip ${currentFilter==='sports'?'active':''}" onclick="setFilter('sports')">스포츠</div>
     ${customCategories.map(cat => `<div class="chip ${currentFilter===cat?'active':''}" onclick="setFilter('${cat}')">${cat}</div>`).join('')}
     <div class="chip" onclick="addCategory()" style="background:var(--gold-dim); border-color:var(--gold); color:var(--gold); margin-left:auto;">+ 추가</div>
@@ -438,33 +390,22 @@ function renderRecentCards() {
 function openCapturedDetail(index) {
   const card = myCollection[index];
   if (!card) return;
-  
   document.getElementById('d-name').textContent = card.name;
   document.getElementById('d-set').textContent = `${card.set || ""} ${card.rarity || ""}`;
   document.getElementById('d-showcase').innerHTML = `<img src="${card.image}" style="width:100%;height:100%;object-fit:cover;">`;
-  
   const hpS = document.getElementById('d-hp-section');
   if (card.hp) {
     hpS.style.display = 'block';
     document.getElementById('d-hp').textContent = `${card.hp} HP`;
     document.getElementById('d-hp-fill').style.width = Math.min((card.hp/340)*100, 100) + '%';
   } else { hpS.style.display = 'none'; }
-
   const atkS = document.getElementById('d-attacks-wrap');
   if (card.attacks && card.attacks.length > 0) {
     atkS.style.display = 'block';
-    document.getElementById('d-attacks').innerHTML = card.attacks.map(a => `
-      <div class="attack-row">
-        <div class="atk-info"><div class="atk-name">${a.name}</div><div class="atk-desc">${a.desc || ""}</div></div>
-        <div class="atk-dmg">${a.dmg || ""}</div>
-      </div>
-    `).join('');
+    document.getElementById('d-attacks').innerHTML = card.attacks.map(a => `<div class="attack-row"><div class="atk-info"><div class="atk-name">${a.name}</div><div class="atk-desc">${a.desc || ""}</div></div><div class="atk-dmg">${a.dmg || ""}</div></div>`).join('');
   } else { atkS.style.display = 'none'; }
-
   document.getElementById('detail-back').onclick = () => goScreen('collection');
-  document.getElementById('detail-delete-btn').onclick = () => {
-    if(confirm('삭제할까요?')) { myCollection.splice(index,1); saveUserCollection(); goScreen('collection'); }
-  };
+  document.getElementById('detail-delete-btn').onclick = () => { if(confirm('삭제할까요?')) { myCollection.splice(index,1); saveUserCollection(); goScreen('collection'); } };
   goScreen('detail');
 }
 
@@ -472,11 +413,11 @@ function addToCollection() {
   if (!currentAiResult || !capturedImageData) return;
   myCollection.unshift({ ...currentAiResult, image: capturedImageData, date: new Date().toISOString() });
   saveUserCollection();
-  showToast('✅', '저장되었습니다!');
+  showToast('✅', '컬렉션에 추가되었습니다!');
   goScreen('collection');
 }
 
-// ===================== 8. AUTH CALLBACKS =====================
+// ===================== 8. AUTH & PROFILE =====================
 function handleCredentialResponse(r) {
   try {
     const u = JSON.parse(decodeURIComponent(escape(window.atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
@@ -488,16 +429,12 @@ function handleCredentialResponse(r) {
 
 function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-    loadUserData();
-    updateUserUI();
-    goScreen('home');
+    currentUser = null; localStorage.removeItem('currentUser');
+    loadUserData(); updateUserUI(); goScreen('home');
     showToast('👋', '로그아웃 되었습니다.');
   }
 }
 
-// ===================== 9. PROFILE ACTIONS =====================
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'light';
   const target = current === 'light' ? 'dark' : 'light';
@@ -507,22 +444,12 @@ function toggleTheme() {
 }
 
 function shareCollection() {
-  if (myCollection.length === 0) {
-    showToast('⚠️', '공유할 카드가 없습니다.');
-    return;
-  }
-  
+  if (myCollection.length === 0) { showToast('⚠️', '공유할 카드가 없습니다.'); return; }
   if (navigator.share) {
-    navigator.share({
-      title: '나의 TCG 컬렉션',
-      text: `TCGfinder에서 나의 ${myCollection.length}장의 카드를 구경해보세요!`,
-      url: window.location.href
-    })
+    navigator.share({ title: '나의 TCG 컬렉션', text: `TCGfinder에서 나의 ${myCollection.length}장의 카드를 구경해보세요!`, url: window.location.href })
     .then(() => showToast('📤', '공유 완료!'))
     .catch((error) => console.log('Error sharing', error));
-  } else {
-    showToast('❌', '이 기기에서는 공유 기능이 지원되지 않습니다.');
-  }
+  } else { showToast('❌', '이 기기에서는 공유 기능이 지원되지 않습니다.'); }
 }
 
 async function requestFullPermissions() {
@@ -530,179 +457,75 @@ async function requestFullPermissions() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     stream.getTracks().forEach(track => track.stop());
     showToast('✅', '카메라 권한이 허용되었습니다.');
-  } catch (err) {
-    showToast('❌', '권한 요청에 실패했습니다.');
-  }
+  } catch (err) { showToast('❌', '권한 요청에 실패했습니다.'); }
 }
 
-// ===================== 11. PROFILE EDITING =====================
 function openEditProfile() {
   if (!currentUser) return;
   const modal = document.getElementById('edit-profile-modal');
-  const nickInput = document.getElementById('edit-nickname');
-  const preview = document.getElementById('edit-preview-icon');
-  
-  if (modal && nickInput && preview) {
-    nickInput.value = currentUser.name || '';
-    preview.textContent = currentUser.picture || '👤';
-    window.selectedAvatar = currentUser.picture || '👤';
-    
-    // Render avatar options
-    const avatars = ['👤', '🐱', '🐶', '🦊', '🦁', '🐸', '🤖', '👾', '⭐', '🔥', '⚡', '💎', '🦄', '🐲', '👻'];
-    const picker = document.getElementById('avatar-picker');
-    if (picker) {
-      picker.innerHTML = avatars.map(a => `
-        <div class="avatar-option" onclick="selectAvatar('${a}')" style="cursor:pointer; font-size:24px; padding:5px; border-radius:50%; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">${a}</div>
-      `).join('');
-    }
-    
-    modal.style.display = 'flex';
-  }
+  document.getElementById('edit-nickname').value = currentUser.name || '';
+  document.getElementById('edit-preview-icon').textContent = currentUser.picture || '👤';
+  const avatars = ['👤', '🐱', '🐶', '🦊', '🦁', '🐸', '🤖', '👾', '⭐', '🔥', '⚡', '💎', '🦄', '🐲', '👻'];
+  document.getElementById('avatar-picker').innerHTML = avatars.map(a => `<div class="avatar-option" onclick="selectAvatar('${a}')">${a}</div>`).join('');
+  modal.style.display = 'flex';
 }
 
-function closeEditProfile() {
-  const modal = document.getElementById('edit-profile-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-function selectAvatar(icon) {
-  window.selectedAvatar = icon;
-  const preview = document.getElementById('edit-preview-icon');
-  if (preview) {
-    preview.textContent = icon;
-    // Add a little pop animation
-    preview.animate([
-      { transform: 'scale(1)' },
-      { transform: 'scale(1.2)' },
-      { transform: 'scale(1)' }
-    ], { duration: 300 });
-  }
-}
+function closeEditProfile() { document.getElementById('edit-profile-modal').style.display = 'none'; }
+function selectAvatar(icon) { window.selectedAvatar = icon; document.getElementById('edit-preview-icon').textContent = icon; }
 
 function saveProfile() {
-  const nickInput = document.getElementById('edit-nickname');
-  if (!nickInput) return;
-  
-  const newName = nickInput.value.trim();
-  if (!newName) {
-    showToast('⚠️', '닉네임을 입력해주세요.');
-    return;
-  }
-  
+  const newName = document.getElementById('edit-nickname').value.trim();
+  if (!newName) { showToast('⚠️', '닉네임을 입력해주세요.'); return; }
   const newPic = window.selectedAvatar || currentUser.picture || '👤';
-  
-  // Update current user
-  currentUser.name = newName;
-  currentUser.picture = newPic;
+  currentUser.name = newName; currentUser.picture = newPic;
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  
-  // Save to persistent profile storage
-  try {
-    const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
-    profiles[currentUser.email] = { name: newName, picture: newPic };
-    localStorage.setItem('userProfiles', JSON.stringify(profiles));
-  } catch (e) {
-    console.error("Profile save error:", e);
-  }
-  
-  updateUserUI();
-  closeEditProfile();
-  showToast('✅', '프로필이 수정되었습니다.');
+  const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
+  profiles[currentUser.email] = { name: newName, picture: newPic };
+  localStorage.setItem('userProfiles', JSON.stringify(profiles));
+  updateUserUI(); closeEditProfile(); showToast('✅', '프로필이 수정되었습니다.');
 }
 
-// ===================== 12. GUIDE SYSTEM =====================
-const GUIDE_CONTENT = {
-  usage: {
-    title: 'TCGfinder 앱 사용법',
-    body: `
-      <h3>반갑습니다, 컬렉터님!</h3>
-      <p>TCGfinder는 당신의 소중한 카드 컬렉션을 AI로 쉽고 빠르게 관리할 수 있도록 돕는 도구입니다.</p>
-      
-      <h3>1. 카드 스캔하기</h3>
-      <p>하단 중앙의 📷 버튼을 눌러 스캔 화면으로 이동하세요. 카드를 카메라 가이드 안에 맞추면 AI가 자동으로 카드를 인식합니다.</p>
-      
-      <h3>2. 컬렉션 관리</h3>
-      <p>인식된 카드는 '컬렉션' 탭에 저장됩니다. 카테고리별로 분류하거나 이름으로 검색하여 원하는 카드를 금방 찾을 수 있습니다.</p>
-      
-      <h3>3. 위시리스트</h3>
-      <p>카드 상세 화면에서 ❤️ 버튼을 누르면 위시리스트에 담깁니다. 갖고 싶은 카드를 따로 관리해 보세요.</p>
-    `
-  },
-  scan: {
-    title: 'AI 스캔 100% 활용하기',
-    body: `
-      <h3>정확한 인식을 위한 팁</h3>
-      <p>AI 스캔의 정확도를 높이기 위해 다음 사항을 확인해 주세요.</p>
-      
-      <ul>
-        <li><strong>밝은 조명:</strong> 카드가 너무 어둡거나 그림자가 지지 않도록 밝은 곳에서 촬영하세요.</li>
-        <li><strong>반사 방지:</strong> 슬리브나 카드 표면의 빛 반사가 심하면 인식이 어려울 수 있습니다. 각도를 살짝 조절해 보세요.</li>
-        <li><strong>배경 대조:</strong> 카드와 대비되는 단색 배경에서 촬영하면 더 잘 인식됩니다.</li>
-        <li><strong>초점 맞추기:</strong> 화면을 탭하여 카드의 텍스트가 선명하게 보이도록 초점을 잡으세요.</li>
-      </ul>
-    `
-  },
-  storage: {
-    title: '소중한 카드 보관법',
-    body: `
-      <h3>카드의 가치를 보존하세요</h3>
-      <p>컬렉터에게 카드의 상태는 가장 중요한 가치입니다.</p>
-      
-      <h3>슬리브와 탑로더</h3>
-      <p>기본적으로 '퍼펙트 핏' 슬리브를 씌우고, 그 위에 일반 슬리브를 한 번 더 씌우는 '이중 슬리브'를 추천합니다. 고가의 카드는 단단한 '탑로더'나 '자석 케이스'에 보관하세요.</p>
-      
-      <h3>온도와 습도</h3>
-      <p>카드는 습기에 매우 취약합니다. 습도가 높으면 카드가 휠 수 있으니, 제습제와 함께 밀폐된 상자나 전용 바인더에 보관하는 것이 좋습니다.</p>
-      
-      <h3>직사광선 피하기</h3>
-      <p>햇빛에 오래 노출되면 카드의 색상이 바랠 수 있습니다. 반드시 어둡고 서늘한 곳에 보관해 주세요.</p>
-    `
+// Gemini API 키 설정
+function setGeminiKey() {
+  const currentKey = geminiApiKey === DEFAULT_GEMINI_KEY ? "" : geminiApiKey;
+  const newKey = prompt("Gemini API 키를 입력해 주세요 (비워두면 기본 키 사용):", currentKey);
+  if (newKey !== null) {
+    if (newKey.trim() === "") {
+      localStorage.removeItem('user_gemini_key');
+      geminiApiKey = DEFAULT_GEMINI_KEY;
+      showToast('🔄', '기본 API 키로 재설정되었습니다.');
+    } else {
+      localStorage.setItem('user_gemini_key', newKey.trim());
+      geminiApiKey = newKey.trim();
+      showToast('✅', 'API 키가 업데이트되었습니다.');
+    }
   }
+}
+
+// ===================== 9. GUIDE & INITIALIZATION =====================
+const GUIDE_CONTENT = {
+  usage: { title: 'TCGfinder 앱 사용법', body: `<h3>반갑습니다!</h3><p>TCGfinder는 AI로 카드를 관리하는 도구입니다.</p><h3>1. 카드 스캔</h3><p>중앙 📷 버튼으로 AI 스캔을 시작하세요.</p><h3>2. 컬렉션</h3><p>저장된 카드는 언제든 상세 정보와 기술을 확인할 수 있습니다.</p>` },
+  scan: { title: 'AI 스캔 팁', body: `<h3>정확한 인식을 위해</h3><ul><li>밝은 곳에서 촬영하세요.</li><li>카드가 가이드 사각형에 꽉 차게 맞춰주세요.</li><li>빛 반사가 심하면 각도를 살짝 조절하세요.</li></ul>` },
+  storage: { title: '카드 보관법', body: `<h3>가치 보존</h3><p>고가의 카드는 '슬리브'와 '탑로더'에 이중으로 보관하는 것을 추천합니다. 습기와 직사광선을 피하세요.</p>` }
 };
 
 function openGuide(slug) {
   const guide = GUIDE_CONTENT[slug];
   if (!guide) return;
-  
-  const titleEl = document.getElementById('guide-title');
-  const bodyEl = document.getElementById('guide-body');
-  
-  if (titleEl && bodyEl) {
-    titleEl.textContent = guide.title;
-    bodyEl.innerHTML = guide.body;
-    goScreen('guide');
-    
-    // Scroll to top
-    const screenEl = document.getElementById('screen-guide');
-    if (screenEl) screenEl.scrollTop = 0;
-  }
+  document.getElementById('guide-title').textContent = guide.title;
+  document.getElementById('guide-body').innerHTML = guide.body;
+  goScreen('guide');
 }
 
-// ===================== 10. INITIALIZATION =====================
 window.onload = () => {
-  // Load saved theme
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
-
   if (typeof google !== 'undefined') {
-    google.accounts.id.initialize({ 
-      client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com", 
-      callback: handleCredentialResponse 
-    });
+    google.accounts.id.initialize({ client_id: "724218200034-j2oa5nfjnilom3m56jchg1pcf26u3kkf.apps.googleusercontent.com", callback: handleCredentialResponse });
   }
-  
-  loadUserData();
-  updateUserUI();
-  updateClock();
-  
+  loadUserData(); updateUserUI(); updateClock();
   const searchInput = document.getElementById('coll-search-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value.toLowerCase();
-      renderCollection();
-    });
-  }
-  
+  if (searchInput) { searchInput.addEventListener('input', (e) => { searchQuery = e.target.value.toLowerCase(); renderCollection(); }); }
   setInterval(updateClock, 1000);
   goScreen('home');
 };
