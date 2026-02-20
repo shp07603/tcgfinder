@@ -347,7 +347,7 @@ function handleLogout() {
 // ===================== 9. PROFILE ACTIONS =====================
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'light';
-  const target = current === 'dark' ? 'light' : 'dark';
+  const target = current === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', target);
   localStorage.setItem('theme', target);
   showToast(target === 'dark' ? '🌙' : '☀️', `${target === 'dark' ? '다크' : '라이트'} 모드로 변경됨`);

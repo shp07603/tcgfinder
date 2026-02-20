@@ -1,56 +1,70 @@
 /* ===================== BASE ===================== */
 :root {
-  --bg: #090910;
-  --surface: #111118;
-  --surface2: #18181f;
-  --surface3: #1f1f28;
-  --border: rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.1);
-  --gold: #C9A84C;
-  --gold2: #E8C96A;
-  --gold-dim: rgba(201,168,76,0.12);
-  --gold-glow: rgba(201,168,76,0.35);
-  --text: #EDE9E3;
-  --text2: rgba(237,233,227,0.55);
-  --text3: rgba(237,233,227,0.3);
-  --pokemon: #FF6B35;
-  --soccer: #4A90D9;
-  --green: #34D399;
-  --purple: #A78BFA;
-  --grad-gold: linear-gradient(135deg, #C9A84C 0%, #E8C96A 50%, #B8922A 100%);
-  --grad-holo: linear-gradient(135deg, #7C3AED 0%, #EC4899 50%, #3B82F6 100%);
-  --grad-dark: linear-gradient(180deg, #090910 0%, #0d0d16 100%);
-  --nav-h: 80px;
-  --radius: 22px;
-  --radius-sm: 14px;
-  --transition: all 0.3s ease;
-  --nav-bg: rgba(10, 10, 16, 0.96);
-}
-
-[data-theme="light"] {
   --bg: #F8F9FA;
   --surface: #FFFFFF;
   --surface2: #F1F3F5;
   --surface3: #E9ECEF;
   --border: rgba(0,0,0,0.08);
   --border2: rgba(0,0,0,0.12);
+  --gold: #C9A84C;
+  --gold2: #E8C96A;
+  --gold-dim: rgba(201,168,76,0.12);
+  --gold-glow: rgba(201,168,76,0.35);
   --text: #1A1A1A;
   --text2: rgba(26,26,26,0.65);
   --text3: rgba(26,26,26,0.4);
-  --nav-bg: #FFFFFF;
+  --pokemon: #FF6B35;
+  --soccer: #4A90D9;
+  --green: #34D399;
+  --purple: #A78BFA;
+  --grad-gold: linear-gradient(135deg, #C9A84C 0%, #E8C96A 50%, #B8922A 100%);
+  --grad-holo: linear-gradient(135deg, #7C3AED 0%, #EC4899 50%, #3B82F6 100%);
+  --grad-dark: linear-gradient(180deg, #F8F9FA 0%, #F1F3F5 100%);
+  --nav-h: 80px;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --transition: all 0.3s ease;
+  --nav-bg: rgba(255, 255, 255, 0.9);
 }
 
-[data-theme="light"] #nav {
-  background: rgba(255, 255, 255, 0.9);
+[data-theme="dark"] {
+  --bg: #090910;
+  --surface: #111118;
+  --surface2: #18181f;
+  --surface3: #1f1f28;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --text: #EDE9E3;
+  --text2: rgba(237,233,227,0.55);
+  --text3: rgba(237,233,227,0.3);
+  --nav-bg: rgba(10, 10, 16, 0.96);
+}
+
+[data-theme="dark"] #nav {
+  background: var(--nav-bg);
+  border-top: 1px solid var(--border);
+}
+
+[data-theme="dark"] .nav-label {
+  color: var(--text3);
+}
+
+[data-theme="dark"] .nav-btn.active .nav-label {
+  color: var(--gold);
+}
+
+/* Light Mode Specific Nav overrides (since :root is light) */
+#nav {
+  background: var(--nav-bg);
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="light"] .nav-label {
+.nav-label {
   color: rgba(0, 0, 0, 0.6);
 }
 
-[data-theme="light"] .nav-btn.active .nav-label {
-  color: #B8922A; /* A slightly darker gold for white bg */
+.nav-btn.active .nav-label {
+  color: #B8922A; 
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
