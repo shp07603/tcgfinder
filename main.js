@@ -104,9 +104,18 @@ function captureFrame() {
   return canvas.toDataURL('image/jpeg', 0.8);
 }
 
+// 1단계: Gemini Vision으로 기본 정보 식별
 async function callGeminiAI(base64Image) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const prompt = `Identify the card. Return ONLY JSON in Korean: {"name":"..","set":"..","rarity":"..","category":"pokemon|sports|tcg","hp":0,"attacks":[],"stats":{}}`;
+  // 프롬프트 강화: 영문 이름 필수, JSON 형식 강조
+  const prompt = `Identify this trading card. Return STRICT JSON without Markdown. 
+  Fields:
+  - "name": Card Name (English only, e.g., "Charizard")
+  - "name_ko": Card Name (Korean, if unknown use English)
+  - "set": Set Name
+  - "id": Card Number (e.g., "4/102")
+  - "category": "pokemon" or "sports" or "tcg"
+  `;
 
   try {
     const response = await fetch(url, {
@@ -117,12 +126,43 @@ async function callGeminiAI(base64Image) {
         generationConfig: { response_mime_type: "application/json", temperature: 0.1 }
       })
     });
+
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
     const data = await response.json();
-    return JSON.parse(data.candidates[0].content.parts[0].text);
+    let text = data.candidates[0].content.parts[0].text;
+    
+    // Markdown 제거 및 정제
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
   } catch (e) {
     console.error("AI Error:", e);
     return null;
   }
+}
+
+// 2단계: 외부 데이터베이스(PokéAPI TCG)에서 검증 및 상세 데이터 확보
+async function searchPokemonDB(cardName) {
+  if (!cardName) return null;
+  try {
+    // 포켓몬 TCG API 호출 (이름으로 검색)
+    const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${cardName}"&pageSize=1`, {
+      headers: { 'X-Api-Key': 'da0e3026-6c70-496f-96a0-629dfba25771' } // 공용 키 사용 (필요시 교체)
+    });
+    const data = await res.json();
+    if (data.data && data.data.length > 0) {
+      const card = data.data[0];
+      return {
+        hp: parseInt(card.hp) || 0,
+        rarity: card.rarity || 'Common',
+        image: card.images.large || card.images.small,
+        attacks: card.attacks ? card.attacks.map(a => ({ name: a.name, dmg: a.damage, desc: a.text })) : [],
+        verified: true
+      };
+    }
+  } catch (e) {
+    console.warn("DB Search failed:", e);
+  }
+  return null;
 }
 
 async function triggerScan() {
@@ -139,25 +179,61 @@ async function triggerScan() {
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
+  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
   
-  showToast('🔍', '카드를 분석하고 있습니다...');
-  const res = await callGeminiAI(base64Data);
+  // 1. AI Vision 인식
+  const aiRes = await callGeminiAI(base64Data);
   
-  if (res && res.name) {
-    currentAiResult = res;
-    document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
-    document.getElementById('ai-name').textContent = res.name;
-    document.getElementById('ai-set').textContent = res.set || "";
-    document.getElementById('ai-rarity').textContent = res.rarity || "";
-    document.getElementById('ai-cat').textContent = res.category;
-    document.getElementById('ai-result').style.display = 'block';
-    
-    // Scroll to results
-    document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
-    showToast('✨', '인식 완료!');
-  } else {
-    showToast('❌', '인식 실패. 다시 찍어주세요.');
+  if (!aiRes || !aiRes.name) {
+    showToast('❌', '인식 실패. 카드가 잘 보이게 다시 찍어주세요.');
+    return;
   }
+
+  showToast('📡', '데이터베이스 확인 중...');
+  
+  // 2. DB 교차 검증 (포켓몬인 경우)
+  let dbData = null;
+  if (aiRes.category.toLowerCase().includes('pokemon')) {
+    dbData = await searchPokemonDB(aiRes.name);
+  }
+
+  // 3. 데이터 병합
+  const finalResult = {
+    name: aiRes.name_ko || aiRes.name, // 한국어 이름 우선
+    name_en: aiRes.name,
+    set: aiRes.set,
+    category: aiRes.category,
+    rarity: dbData ? dbData.rarity : (aiRes.rarity || "Unknown"),
+    hp: dbData ? dbData.hp : 0,
+    attacks: dbData ? dbData.attacks : [],
+    image: base64Data, // 기본은 촬영본, 옵션으로 고화질 DB이미지 사용 가능
+    dbImage: dbData ? dbData.image : null
+  };
+
+  currentAiResult = finalResult;
+  
+  // UI 표시
+  document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+  document.getElementById('ai-name').textContent = finalResult.name;
+  document.getElementById('ai-set').textContent = finalResult.set || "";
+  document.getElementById('ai-rarity').textContent = finalResult.rarity;
+  document.getElementById('ai-cat').textContent = finalResult.category;
+  
+  // DB 검증 뱃지
+  const tag = document.querySelector('.ai-tag');
+  if (dbData) {
+    tag.innerHTML = "✦ DB 검증됨 ✅";
+    tag.style.color = "var(--green)";
+    tag.style.background = "rgba(52, 211, 153, 0.15)";
+  } else {
+    tag.innerHTML = "✦ AI 인식 결과";
+    tag.style.color = "var(--gold)";
+    tag.style.background = "var(--gold-dim)";
+  }
+
+  document.getElementById('ai-result').style.display = 'block';
+  document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
+  showToast('✨', '분석 완료!');
 }
 
 function handleGallerySelect(event) {
