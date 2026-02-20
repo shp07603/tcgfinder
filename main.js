@@ -131,24 +131,72 @@ async function triggerScan() {
   
   const img = captureFrame();
   if (!img) { showToast('⚠️', '카메라가 준비되지 않았습니다.'); scanning = false; return; }
-  capturedImageData = img;
+  
+  await processImage(img);
+  scanning = false;
+}
 
+async function processImage(base64Data) {
+  capturedImageData = base64Data;
+  document.getElementById('ai-result').style.display = 'none';
+  
   showToast('🔍', '카드를 분석하고 있습니다...');
-  const res = await callGeminiAI(img);
+  const res = await callGeminiAI(base64Data);
   
   if (res && res.name) {
     currentAiResult = res;
-    document.getElementById('ai-thumb').innerHTML = `<img src="${img}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+    document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
     document.getElementById('ai-name').textContent = res.name;
     document.getElementById('ai-set').textContent = res.set || "";
     document.getElementById('ai-rarity').textContent = res.rarity || "";
     document.getElementById('ai-cat').textContent = res.category;
     document.getElementById('ai-result').style.display = 'block';
+    
+    // Scroll to results
+    document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
     showToast('✨', '인식 완료!');
   } else {
     showToast('❌', '인식 실패. 다시 찍어주세요.');
   }
-  scanning = false;
+}
+
+function handleGallerySelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Resize/Crop to 600x800 similar to camera
+      canvas.width = 600;
+      canvas.height = 800;
+      
+      const iw = img.width;
+      const ih = img.height;
+      let tw, th, sx, sy;
+      
+      if (iw / ih > 3 / 4) {
+        th = ih; tw = ih * (3 / 4);
+        sx = (iw - tw) / 2; sy = 0;
+      } else {
+        tw = iw; th = iw * (4 / 3);
+        sx = 0; sy = (ih - th) / 2;
+      }
+      
+      ctx.drawImage(img, sx, sy, tw, th, 0, 0, 600, 800);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      processImage(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  
+  // Reset input
+  event.target.value = '';
 }
 
 // ===================== 5. NAVIGATION & UI =====================

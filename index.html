@@ -125,7 +125,8 @@
         <div class="scan-opt-icon">📷</div>
         <div class="scan-opt-lbl">카메라 스캔</div>
       </div>
-      <div class="scan-opt" onclick="triggerScan()">
+      <input type="file" id="gallery-input" accept="image/*" style="display:none;" onchange="handleGallerySelect(event)">
+      <div class="scan-opt" onclick="document.getElementById('gallery-input').click()">
         <div class="scan-opt-icon">🖼️</div>
         <div class="scan-opt-lbl">갤러리에서</div>
       </div>
