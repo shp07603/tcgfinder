@@ -111,17 +111,18 @@ function captureFrame() {
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  // v1beta에서 v1으로 변경 (안정성 확보)
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
   
-  const prompt = `You are a TCG Expert. Identify the card in the image.
-  Return ONLY a JSON object with these EXACT fields:
+  const prompt = `You are a professional TCG identification AI. 
+  Analyze the provided image and identify the trading card.
+  Return ONLY a valid JSON object. No markdown, no preamble.
   {
-    "name": "English Card Name",
-    "name_ko": "Korean Card Name",
-    "set": "Set Name",
+    "name": "English Name",
+    "name_ko": "Korean Name",
+    "set": "Set/Expansion Name",
     "category": "pokemon"
-  }
-  Do not include markdown or explanations. If it is not a card, return {"error": "not_a_card"}`;
+  }`;
 
   try {
     const rawData = base64Image.split(',')[1];
@@ -134,37 +135,31 @@ async function callGeminiAI(base64Image) {
             { text: prompt }, 
             { inlineData: { mimeType: "image/jpeg", data: rawData } } 
           ] 
-        }],
-        generationConfig: { 
-          responseMimeType: "application/json",
-          temperature: 0.1 
-        }
+        }]
       })
     });
 
-    if (response.status === 403) throw new Error("API 키가 잘못되었거나 제한되었습니다.");
-    if (response.status === 429) throw new Error("API 사용량이 초과되었습니다. 잠시 후 다시 시도하세요.");
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+    }
 
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    
     if (!data.candidates || !data.candidates[0].content) {
-      const reason = data.candidates[0]?.finishReason;
-      if (reason === "SAFETY") throw new Error("이미지가 안전 필터에 의해 차단되었습니다. 밝은 곳에서 다시 찍어주세요.");
-      throw new Error("AI가 카드를 식별하지 못했습니다.");
+      throw new Error("AI가 카드를 인식하지 못했습니다. 더 밝은 곳에서 찍어주세요.");
     }
 
     let text = data.candidates[0].content.parts[0].text;
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("결과 데이터 파싱 실패");
     
-    const result = JSON.parse(match[0]);
-    if (result.error) throw new Error("카드 이미지가 아닙니다.");
+    // JSON 추출 로직 강화 (앞뒤 쓰레기 텍스트 완벽 제거)
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}') + 1;
+    if (start === -1 || end === 0) throw new Error("유효한 JSON 응답을 받지 못했습니다.");
     
-    return result;
+    return JSON.parse(text.substring(start, end));
   } catch (e) {
-    console.error("AI Error:", e);
-    showToast('❌', e.message);
+    console.error("Gemini API Error:", e);
+    showToast('❌', `인식 오류: ${e.message}`);
     return null;
   }
 }
