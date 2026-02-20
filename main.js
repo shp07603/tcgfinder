@@ -146,7 +146,7 @@ async function searchPokemonDB(cardName) {
   try {
     // 포켓몬 TCG API 호출 (이름으로 검색)
     const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${cardName}"&pageSize=1`, {
-      headers: { 'X-Api-Key': 'da0e3026-6c70-496f-96a0-629dfba25771' } // 공용 키 사용 (필요시 교체)
+      headers: { 'X-Api-Key': '706eeb3d-41bf-49e0-9e9d-acca2c909f1e' } 
     });
     const data = await res.json();
     if (data.data && data.data.length > 0) {
