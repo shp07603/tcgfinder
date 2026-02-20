@@ -121,18 +121,28 @@ async function callGeminiAI(base64Image) {
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 실패 (이미지를 더 밝게 찍어주세요)");
-    return JSON.parse(data.candidates[0].content.parts[0].text);
+    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 결과가 없습니다. 조명을 밝게 해주세요.");
+
+    let text = data.candidates[0].content.parts[0].text;
+    // JSON 정제 로직: Markdown이나 불필요한 텍스트 제거
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}') + 1;
+    if (start === -1 || end === 0) throw new Error("AI 응답 형식이 올바르지 않습니다.");
+    
+    return JSON.parse(text.substring(start, end));
   } catch (e) {
     console.error("AI Error:", e);
-    showToast('❌', e.message);
+    const msg = e.message.includes("API key") ? "API 키가 올바르지 않습니다. [내 정보]에서 키를 확인해주세요." : e.message;
+    showToast('❌', msg);
     return null;
   }
 }
 
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
-  const query = encodeURIComponent(cardName);
+  // DB 검색 쿼리 최적화: 특수문자 제거 및 유연한 매칭
+  const cleanName = cardName.split('(')[0].trim();
+  const query = encodeURIComponent(cleanName);
   try {
     const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${query}"&pageSize=1`, {
       headers: { 'X-Api-Key': pokemonTcgKey } 
