@@ -115,8 +115,8 @@ function captureFrame() {
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
 
-  // v1beta에서 v1으로 변경 (안정성 확보)
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  // v1beta 경로로 정확히 수정 (오타 주의: vibeta 아님)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
   
   const prompt = `You are a professional TCG identification AI. 
   Analyze the provided image and identify the trading card.
