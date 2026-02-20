@@ -1,6 +1,5 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-// Version: 1.0.1 - AI Model Upgrade & Path Fix
-// 보안을 위해 기본 키를 분할하여 결합 (단순 크롤링 방지)
+// Version: 1.0.3 - Final Robust Fix
 const _k1 = "AIzaSyB9LT3y2aM";
 const _k2 = "OkMbFJOHmAa020P";
 const _k3 = "Qv3vAOCx8";
@@ -25,12 +24,11 @@ function showToast(icon, msg) {
   const tIcon = document.getElementById('toast-icon');
   const tMsg = document.getElementById('toast-msg');
   if (!t || !tIcon || !tMsg) return;
-  
   clearTimeout(window.toastTimer);
   tIcon.textContent = icon;
   tMsg.textContent = msg;
   t.classList.add('show');
-  window.toastTimer = setTimeout(() => t.classList.remove('show'), 4000); // 4초로 연장
+  window.toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
 function updateClock() {
@@ -41,11 +39,7 @@ function updateClock() {
 
 // ===================== 3. DATA MANAGEMENT =====================
 function loadUserData() {
-  if (!currentUser) {
-    myCollection = [];
-    customCategories = [];
-    return;
-  }
+  if (!currentUser) { myCollection = []; customCategories = []; return; }
   try {
     myCollection = JSON.parse(localStorage.getItem(`collection_${currentUser.email}`)) || [];
     customCategories = JSON.parse(localStorage.getItem(`categories_${currentUser.email}`)) || [];
@@ -54,10 +48,7 @@ function loadUserData() {
       currentUser.name = profiles[currentUser.email].name;
       currentUser.picture = profiles[currentUser.email].picture;
     }
-  } catch (e) {
-    console.error("Data load error:", e);
-    myCollection = [];
-  }
+  } catch (e) { console.error("Data load error:", e); myCollection = []; }
 }
 
 function saveUserCollection() {
@@ -77,120 +68,81 @@ async function initCamera() {
     video.srcObject = stream;
     video.onloadedmetadata = () => video.play();
     video.style.display = 'block';
-  } catch (err) {
-    showToast('❌', '카메라 권한을 허용해 주세요.');
-  }
+  } catch (err) { showToast('❌', '카메라 권한을 허용해 주세요.'); }
 }
 
 function stopCamera() {
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-  }
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
 }
 
 function captureFrame() {
   const video = document.getElementById('video-stream');
   const canvas = document.getElementById('capture-canvas');
   if (!video || video.videoWidth === 0 || !canvas) return null;
-
   const ctx = canvas.getContext('2d');
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  
+  const vw = video.videoWidth, vh = video.videoHeight;
   let tw, th, sx, sy;
-  if (vw / vh > 3 / 4) {
-    th = vh; tw = vh * (3 / 4);
-    sx = (vw - tw) / 2; sy = 0;
-  } else {
-    tw = vw; th = vw * (4 / 3);
-    sx = 0; sy = (vh - th) / 2;
-  }
-
-  canvas.width = 800; canvas.height = 1066; // 조금 더 고해상도로 캡처
-  ctx.drawImage(video, sx, sy, tw, th, 0, 0, 800, 1066);
-  return canvas.toDataURL('image/jpeg', 0.85);
+  if (vw / vh > 3 / 4) { th = vh; tw = vh * (3 / 4); sx = (vw - tw) / 2; sy = 0; }
+  else { tw = vw; th = vw * (4 / 3); sx = 0; sy = (vh - th) / 2; }
+  canvas.width = 720; canvas.height = 960;
+  ctx.drawImage(video, sx, sy, tw, th, 0, 0, 720, 960);
+  return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-// 1단계: Gemini Vision 최적화 호출
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
-
-  // 상위 모델인 gemini-1.5-pro 적용 (인식률 극대화)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
-  
-  const prompt = `You are a world-class TCG expert and appraiser. 
-  Carefully analyze this card image. Identify its exact name, set, and language.
-  Return ONLY a valid JSON object without markdown:
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  const prompt = `Identify this TCG card. Respond ONLY with a JSON object.
   {
-    "name": "Exact English Name",
-    "name_ko": "정확한 한국어 이름",
-    "set": "Exact Set Name (e.g. Base Set, Evolving Skies)",
+    "name": "Full English Name for Database Search",
+    "name_ko": "한국어 카드 이름",
+    "set": "Set Name",
     "category": "pokemon"
-  }
-  If you are uncertain, provide your best professional guess.`;
+  }`;
 
   try {
     const rawData = base64Image.split(',')[1];
-    console.log("Pro 모델 분석 요청 중...");
-
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ 
-          parts: [
-            { text: prompt }, 
-            { inlineData: { mimeType: "image/jpeg", data: rawData } } 
-          ] 
-        }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.1
-        }
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: rawData } }] }],
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ],
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
       })
     });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
-    }
-
     const data = await response.json();
-    if (!data.candidates || !data.candidates[0].content) {
-      throw new Error("AI가 카드를 인식하지 못했습니다. 더 밝은 곳에서 찍어주세요.");
-    }
-
-    let text = data.candidates[0].content.parts[0].text;
-    
-    // JSON 추출 로직 강화 (앞뒤 쓰레기 텍스트 완벽 제거)
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}') + 1;
-    if (start === -1 || end === 0) throw new Error("유효한 JSON 응답을 받지 못했습니다.");
-    
-    return JSON.parse(text.substring(start, end));
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 실패 (이미지를 더 밝게 찍어주세요)");
+    return JSON.parse(data.candidates[0].content.parts[0].text);
   } catch (e) {
-    console.error("Gemini API Error:", e);
-    showToast('❌', `인식 오류: ${e.message}`);
+    console.error("AI Error:", e);
+    showToast('❌', e.message);
     return null;
   }
 }
 
-// 2단계: 외부 DB 연동
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
+  const query = encodeURIComponent(cardName);
   try {
-    const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${cardName}"&pageSize=1`, {
+    const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${query}"&pageSize=1`, {
       headers: { 'X-Api-Key': pokemonTcgKey } 
     });
     const data = await res.json();
     if (data.data && data.data.length > 0) {
       const card = data.data[0];
       return {
-        hp: parseInt(card.hp) || 0,
+        hp: card.hp || 0,
         rarity: card.rarity || 'Common',
         image: card.images.large || card.images.small,
-        attacks: card.attacks ? card.attacks.map(a => ({ name: a.name, dmg: a.damage, desc: a.text })) : [],
+        attacks: card.attacks || [],
         verified: true
       };
     }
@@ -210,12 +162,12 @@ async function triggerScan() {
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
-  showToast('🔍', 'AI 분석 중...');
+  showToast('🔍', 'AI가 카드를 분석하고 있습니다...');
   
   const aiRes = await callGeminiAI(base64Data);
   if (!aiRes || !aiRes.name) return;
 
-  showToast('📡', '데이터베이스 교차 검증 중...');
+  showToast('📡', 'DB에서 카드 정보를 확인 중...');
   let dbData = await searchPokemonDB(aiRes.name);
 
   const finalResult = {
@@ -230,7 +182,6 @@ async function processImage(base64Data) {
   };
 
   currentAiResult = finalResult;
-  
   document.getElementById('ai-thumb').innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
   document.getElementById('ai-name').textContent = finalResult.name;
   document.getElementById('ai-set').textContent = finalResult.set || "";
@@ -243,7 +194,7 @@ async function processImage(base64Data) {
 
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
-  showToast('✨', '인식 완료!');
+  showToast('✨', '인식 성공!');
 }
 
 function handleGallerySelect(event) {
@@ -255,13 +206,13 @@ function handleGallerySelect(event) {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      canvas.width = 800; canvas.height = 1066;
+      canvas.width = 720; canvas.height = 960;
       const iw = img.width, ih = img.height;
       let tw, th, sx, sy;
       if (iw / ih > 3 / 4) { th = ih; tw = ih * (3 / 4); sx = (iw - tw) / 2; sy = 0; }
       else { tw = iw; th = iw * (4 / 3); sx = 0; sy = (ih - th) / 2; }
-      ctx.drawImage(img, sx, sy, tw, th, 0, 0, 800, 1066);
-      processImage(canvas.toDataURL('image/jpeg', 0.85));
+      ctx.drawImage(img, sx, sy, tw, th, 0, 0, 720, 960);
+      processImage(canvas.toDataURL('image/jpeg', 0.8));
     };
     img.src = e.target.result;
   };
@@ -275,21 +226,17 @@ function goScreen(name) {
   const target = document.getElementById('screen-' + name);
   if (!target) return;
   target.classList.add('active');
-
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const nb = document.getElementById('nav-' + name);
   if (nb) nb.classList.add('active');
-
   const noNav = ['detail', 'guide', 'about', 'privacy', 'contact'];
   const nav = document.getElementById('nav');
   if (nav) nav.style.display = noNav.includes(name) ? 'none' : 'flex';
-
   if (name === 'scan') {
     if (!currentUser) { showToast('🔑', '로그인이 필요합니다'); goScreen('profile'); return; }
     document.getElementById('ai-result').style.display = 'none';
     initCamera();
   } else { stopCamera(); }
-
   if (name === 'collection') { renderCategoryChips(); renderCollection(); }
   if (name === 'home') renderRecentCards();
   updateStats();
@@ -302,7 +249,6 @@ function updateUserUI() {
   const userPh = document.getElementById('user-photo');
   const userNm = document.getElementById('user-name');
   const userEm = document.getElementById('user-email');
-
   if (currentUser) {
     if (loggedOut) loggedOut.style.display = 'none';
     if (loggedIn) loggedIn.style.display = 'flex';
@@ -335,7 +281,6 @@ function updateStats() {
   if (document.getElementById('prof-wish')) document.getElementById('prof-wish').textContent = wish;
 }
 
-// ===================== 6. RENDER LISTS =====================
 function renderCollection() {
   const grid = document.getElementById('coll-grid');
   if (!grid) return;
@@ -343,28 +288,16 @@ function renderCollection() {
     (currentFilter === 'all' || c.category === currentFilter) && 
     (!searchQuery || c.name.toLowerCase().includes(searchQuery))
   );
-  
   grid.innerHTML = filtered.map(card => {
     const idx = myCollection.indexOf(card);
-    return `
-      <div class="cg-card" onclick="openCapturedDetail(${idx})">
-        <div class="cg-bg"><img src="${card.image}" style="width:100%; height:100%; object-fit:cover;"></div>
-        <div class="cg-overlay"><div class="cg-name">${card.name}</div><div class="cg-rare">${card.rarity || ""}</div></div>
-      </div>
-    `;
+    return `<div class="cg-card" onclick="openCapturedDetail(${idx})"><div class="cg-bg"><img src="${card.image}" style="width:100%; height:100%; object-fit:cover;"></div><div class="cg-overlay"><div class="cg-name">${card.name}</div><div class="cg-rare">${card.rarity || ""}</div></div></div>`;
   }).join('') + `<div class="cg-add" onclick="goScreen('scan')"><div class="cg-add-icon">+</div><div class="cg-add-lbl">카드 추가</div></div>`;
 }
 
 function renderCategoryChips() {
   const row = document.getElementById('filter-row');
   if (!row) return;
-  row.innerHTML = `
-    <div class="chip ${currentFilter==='all'?'active':''}" onclick="setFilter('all')">전체</div>
-    <div class="chip ${currentFilter==='pokemon'?'active':''}" onclick="setFilter('pokemon') || setFilter('pokémon')">포켓몬</div>
-    <div class="chip ${currentFilter==='sports'?'active':''}" onclick="setFilter('sports')">스포츠</div>
-    ${customCategories.map(cat => `<div class="chip ${currentFilter===cat?'active':''}" onclick="setFilter('${cat}')">${cat}</div>`).join('')}
-    <div class="chip" onclick="addCategory()" style="background:var(--gold-dim); border-color:var(--gold); color:var(--gold); margin-left:auto;">+ 추가</div>
-  `;
+  row.innerHTML = `<div class="chip ${currentFilter==='all'?'active':''}" onclick="setFilter('all')">전체</div><div class="chip ${currentFilter==='pokemon'?'active':''}" onclick="setFilter('pokemon')">포켓몬</div><div class="chip ${currentFilter==='sports'?'active':''}" onclick="setFilter('sports')">스포츠</div>${customCategories.map(cat => `<div class="chip ${currentFilter===cat?'active':''}" onclick="setFilter('${cat}')">${cat}</div>`).join('')}<div class="chip" onclick="addCategory()" style="background:var(--gold-dim); border-color:var(--gold); color:var(--gold); margin-left:auto;">+ 추가</div>`;
 }
 
 function setFilter(f) { currentFilter = f; renderCategoryChips(); renderCollection(); }
@@ -381,19 +314,10 @@ function addCategory() {
 function renderRecentCards() {
   const scroll = document.querySelector('.recent-scroll');
   if (!scroll) return;
-  if (myCollection.length === 0) {
-    scroll.innerHTML = '<div style="padding:20px; color:var(--text3); font-size:12px;">최근 추가된 카드가 없습니다</div>';
-    return;
-  }
-  scroll.innerHTML = myCollection.slice(0, 5).map(card => `
-    <div class="r-card" onclick="openCapturedDetail(${myCollection.indexOf(card)})">
-      <div class="r-card-img"><img src="${card.image}" style="width:100%; height:100%; object-fit:cover;"></div>
-      <div class="r-card-name">${card.name}</div>
-    </div>
-  `).join('');
+  if (myCollection.length === 0) { scroll.innerHTML = '<div style="padding:20px; color:var(--text3); font-size:12px;">최근 추가된 카드가 없습니다</div>'; return; }
+  scroll.innerHTML = myCollection.slice(0, 5).map(card => `<div class="r-card" onclick="openCapturedDetail(${myCollection.indexOf(card)})"><div class="r-card-img"><img src="${card.image}" style="width:100%; height:100%; object-fit:cover;"></div><div class="r-card-name">${card.name}</div></div>`).join('');
 }
 
-// ===================== 7. DETAIL & ACTIONS =====================
 function openCapturedDetail(index) {
   const card = myCollection[index];
   if (!card) return;
@@ -424,7 +348,6 @@ function addToCollection() {
   goScreen('collection');
 }
 
-// ===================== 8. AUTH & PROFILE =====================
 function handleCredentialResponse(r) {
   try {
     const u = JSON.parse(decodeURIComponent(escape(window.atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
@@ -492,24 +415,20 @@ function saveProfile() {
   updateUserUI(); closeEditProfile(); showToast('✅', '프로필이 수정되었습니다.');
 }
 
-// Gemini API 키 설정
 function setGeminiKey() {
   const currentKey = geminiApiKey === DEFAULT_GEMINI_KEY ? "" : geminiApiKey;
   const newKey = prompt("Gemini API 키를 입력해 주세요 (비워두면 기본 키 사용):", currentKey);
   if (newKey !== null) {
     if (newKey.trim() === "") {
-      localStorage.removeItem('user_gemini_key');
-      geminiApiKey = DEFAULT_GEMINI_KEY;
+      localStorage.removeItem('user_gemini_key'); geminiApiKey = DEFAULT_GEMINI_KEY;
       showToast('🔄', '기본 API 키로 재설정되었습니다.');
     } else {
-      localStorage.setItem('user_gemini_key', newKey.trim());
-      geminiApiKey = newKey.trim();
+      localStorage.setItem('user_gemini_key', newKey.trim()); geminiApiKey = newKey.trim();
       showToast('✅', 'API 키가 업데이트되었습니다.');
     }
   }
 }
 
-// ===================== 9. GUIDE & INITIALIZATION =====================
 const GUIDE_CONTENT = {
   usage: { title: 'TCGfinder 앱 사용법', body: `<h3>반갑습니다!</h3><p>TCGfinder는 AI로 카드를 관리하는 도구입니다.</p><h3>1. 카드 스캔</h3><p>중앙 📷 버튼으로 AI 스캔을 시작하세요.</p><h3>2. 컬렉션</h3><p>저장된 카드는 언제든 상세 정보와 기술을 확인할 수 있습니다.</p>` },
   scan: { title: 'AI 스캔 팁', body: `<h3>정확한 인식을 위해</h3><ul><li>밝은 곳에서 촬영하세요.</li><li>카드가 가이드 사각형에 꽉 차게 맞춰주세요.</li><li>빛 반사가 심하면 각도를 살짝 조절하세요.</li></ul>` },
