@@ -346,7 +346,7 @@ function handleLogout() {
 
 // ===================== 9. PROFILE ACTIONS =====================
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
   const target = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', target);
   localStorage.setItem('theme', target);
@@ -528,7 +528,7 @@ function openGuide(slug) {
 // ===================== 10. INITIALIZATION =====================
 window.onload = () => {
   // Load saved theme
-  const savedTheme = localStorage.getItem('theme') || 'dark';
+  const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
   if (typeof google !== 'undefined') {
