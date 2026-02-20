@@ -115,21 +115,24 @@ function captureFrame() {
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
 
-  // v1beta 경로로 정확히 수정 (오타 주의: vibeta 아님)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  // 상위 모델인 gemini-1.5-pro 적용 (인식률 극대화)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
   
-  const prompt = `You are a professional TCG identification AI. 
-  Analyze the provided image and identify the trading card.
-  Return ONLY a valid JSON object. No markdown, no preamble.
+  const prompt = `You are a world-class TCG expert and appraiser. 
+  Carefully analyze this card image. Identify its exact name, set, and language.
+  Return ONLY a valid JSON object without markdown:
   {
-    "name": "English Name",
-    "name_ko": "Korean Name",
-    "set": "Set/Expansion Name",
+    "name": "Exact English Name",
+    "name_ko": "정확한 한국어 이름",
+    "set": "Exact Set Name (e.g. Base Set, Evolving Skies)",
     "category": "pokemon"
-  }`;
+  }
+  If you are uncertain, provide your best professional guess.`;
 
   try {
     const rawData = base64Image.split(',')[1];
+    console.log("Pro 모델 분석 요청 중...");
+
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,7 +142,11 @@ async function callGeminiAI(base64Image) {
             { text: prompt }, 
             { inlineData: { mimeType: "image/jpeg", data: rawData } } 
           ] 
-        }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.1
+        }
       })
     });
 
