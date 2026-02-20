@@ -457,6 +457,74 @@ function saveProfile() {
   showToast('✅', '프로필이 수정되었습니다.');
 }
 
+// ===================== 12. GUIDE SYSTEM =====================
+const GUIDE_CONTENT = {
+  usage: {
+    title: 'TCGfinder 앱 사용법',
+    body: `
+      <h3>반갑습니다, 컬렉터님!</h3>
+      <p>TCGfinder는 당신의 소중한 카드 컬렉션을 AI로 쉽고 빠르게 관리할 수 있도록 돕는 도구입니다.</p>
+      
+      <h3>1. 카드 스캔하기</h3>
+      <p>하단 중앙의 📷 버튼을 눌러 스캔 화면으로 이동하세요. 카드를 카메라 가이드 안에 맞추면 AI가 자동으로 카드를 인식합니다.</p>
+      
+      <h3>2. 컬렉션 관리</h3>
+      <p>인식된 카드는 '컬렉션' 탭에 저장됩니다. 카테고리별로 분류하거나 이름으로 검색하여 원하는 카드를 금방 찾을 수 있습니다.</p>
+      
+      <h3>3. 위시리스트</h3>
+      <p>카드 상세 화면에서 ❤️ 버튼을 누르면 위시리스트에 담깁니다. 갖고 싶은 카드를 따로 관리해 보세요.</p>
+    `
+  },
+  scan: {
+    title: 'AI 스캔 100% 활용하기',
+    body: `
+      <h3>정확한 인식을 위한 팁</h3>
+      <p>AI 스캔의 정확도를 높이기 위해 다음 사항을 확인해 주세요.</p>
+      
+      <ul>
+        <li><strong>밝은 조명:</strong> 카드가 너무 어둡거나 그림자가 지지 않도록 밝은 곳에서 촬영하세요.</li>
+        <li><strong>반사 방지:</strong> 슬리브나 카드 표면의 빛 반사가 심하면 인식이 어려울 수 있습니다. 각도를 살짝 조절해 보세요.</li>
+        <li><strong>배경 대조:</strong> 카드와 대비되는 단색 배경에서 촬영하면 더 잘 인식됩니다.</li>
+        <li><strong>초점 맞추기:</strong> 화면을 탭하여 카드의 텍스트가 선명하게 보이도록 초점을 잡으세요.</li>
+      </ul>
+    `
+  },
+  storage: {
+    title: '소중한 카드 보관법',
+    body: `
+      <h3>카드의 가치를 보존하세요</h3>
+      <p>컬렉터에게 카드의 상태는 가장 중요한 가치입니다.</p>
+      
+      <h3>슬리브와 탑로더</h3>
+      <p>기본적으로 '퍼펙트 핏' 슬리브를 씌우고, 그 위에 일반 슬리브를 한 번 더 씌우는 '이중 슬리브'를 추천합니다. 고가의 카드는 단단한 '탑로더'나 '자석 케이스'에 보관하세요.</p>
+      
+      <h3>온도와 습도</h3>
+      <p>카드는 습기에 매우 취약합니다. 습도가 높으면 카드가 휠 수 있으니, 제습제와 함께 밀폐된 상자나 전용 바인더에 보관하는 것이 좋습니다.</p>
+      
+      <h3>직사광선 피하기</h3>
+      <p>햇빛에 오래 노출되면 카드의 색상이 바랠 수 있습니다. 반드시 어둡고 서늘한 곳에 보관해 주세요.</p>
+    `
+  }
+};
+
+function openGuide(slug) {
+  const guide = GUIDE_CONTENT[slug];
+  if (!guide) return;
+  
+  const titleEl = document.getElementById('guide-title');
+  const bodyEl = document.getElementById('guide-body');
+  
+  if (titleEl && bodyEl) {
+    titleEl.textContent = guide.title;
+    bodyEl.innerHTML = guide.body;
+    goScreen('guide');
+    
+    // Scroll to top
+    const screenEl = document.getElementById('screen-guide');
+    if (screenEl) screenEl.scrollTop = 0;
+  }
+}
+
 // ===================== 10. INITIALIZATION =====================
 window.onload = () => {
   // Load saved theme
