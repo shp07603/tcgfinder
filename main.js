@@ -1,5 +1,5 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-// Version: 1.0.5 - Enhanced Capture & Debugging
+// Version: 1.0.6 - User Optimized Prompt & Config
 const _k1 = "AIzaSyB9LT3y2aM";
 const _k2 = "OkMbFJOHmAa020P";
 const _k3 = "Qv3vAOCx8";
@@ -90,13 +90,8 @@ function captureFrame() {
   const canvas = document.getElementById('capture-canvas');
   if (!video || !canvas) return null;
 
-  // 비디오 상태 엄격 체크
   if (video.paused || video.ended || video.readyState < 2 || video.videoWidth === 0) {
-    console.warn("Capture aborted: Video not ready", { 
-      paused: video.paused, 
-      readyState: video.readyState, 
-      vw: video.videoWidth 
-    });
+    console.warn("Capture aborted: Video not ready");
     return null;
   }
 
@@ -132,14 +127,20 @@ async function callGeminiAI(base64Image) {
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
   
-  const prompt = `Identify this TCG card. Respond ONLY with a JSON object. 
-  For "name", use the official English name printed on the card.
-  {
-    "name": "Official English Name",
-    "name_ko": "한국어 이름",
-    "set": "Set Name",
-    "category": "pokemon"
-  }`;
+  // ✅ 사용자 제안 반영: 구체적인 데이터 추출 프롬프트
+  const prompt = `
+    Analyze this trading card image. Respond ONLY with a JSON object.
+    {
+      "name": "Exact card name",
+      "cardNumber": "Card number (e.g. 025/165)",
+      "hp": "HP value",
+      "rarity": "Rarity symbol/name",
+      "set": "Set Name",
+      "name_ko": "Korean name (if known, otherwise null)",
+      "category": "pokemon"
+    }
+    If you cannot find a specific field, mark it as null.
+  `;
 
   try {
     const rawData = base64Image.split(',')[1];
@@ -154,7 +155,10 @@ async function callGeminiAI(base64Image) {
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
         ],
-        generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+        generationConfig: { 
+          temperature: 0.1
+          // 🟡 responseMimeType 제거 (사용자 제안 반영)
+        }
       })
     });
 
@@ -168,7 +172,7 @@ async function callGeminiAI(base64Image) {
     return JSON.parse(text.substring(start, end));
   } catch (e) {
     console.error("Gemini API Error:", e);
-    showToast('❌', "인식 실패: 조명을 더 밝게 하고 다시 시도해주세요.");
+    showToast('❌', "인식 실패: 조명을 밝게 하고 다시 시도해주세요.");
     return null;
   }
 }
@@ -206,26 +210,18 @@ async function searchPokemonDB(cardName) {
 
 async function triggerScan() {
   if (scanning) return;
-  
-  // 시각적 피드백: 셔터 깜빡임
   const flash = document.getElementById('camera-flash');
   if (flash) {
     flash.style.display = 'block';
     setTimeout(() => flash.style.display = 'none', 100);
   }
-
   scanning = true;
-  console.log("Scanning started...");
-
   const img = captureFrame();
   if (!img) {
-    console.warn("Capture failed - camera might not be ready");
     showToast('⚠️', '카메라 준비 중입니다. 1~2초 후 다시 눌러주세요.');
     scanning = false;
     return;
   }
-
-  console.log("Image captured, size:", Math.round(img.length / 1024), "KB");
   await processImage(img);
   scanning = false;
 }
@@ -235,14 +231,9 @@ async function processImage(base64Data) {
   document.getElementById('ai-result').style.display = 'none';
   showToast('🔍', 'AI 분석 중...');
   
-  console.log("Calling Gemini...");
   const aiRes = await callGeminiAI(base64Data);
-  if (!aiRes || !aiRes.name) {
-    console.error("AI identification failed");
-    return;
-  }
+  if (!aiRes || !aiRes.name) return;
 
-  console.log("AI Result:", aiRes.name);
   showToast('📡', '데이터베이스 대조 중...');
   let dbData = await searchPokemonDB(aiRes.name);
 
@@ -258,21 +249,17 @@ async function processImage(base64Data) {
   };
 
   currentAiResult = finalResult;
-  
   const thumb = document.getElementById('ai-thumb');
   if (thumb) thumb.innerHTML = `<img src="${base64Data}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
-  
   document.getElementById('ai-name').textContent = finalResult.name;
   document.getElementById('ai-set').textContent = finalResult.set;
   document.getElementById('ai-rarity').textContent = finalResult.rarity;
   document.getElementById('ai-cat').textContent = finalResult.category;
-  
   const tag = document.querySelector('.ai-tag');
   if (tag) {
     tag.innerHTML = dbData ? "✦ DB 검증됨 ✅" : "✦ AI 인식 결과";
     tag.style.color = dbData ? "var(--green)" : "var(--gold)";
   }
-
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
   showToast('✨', '인식 완료!');
@@ -301,7 +288,6 @@ function handleGallerySelect(event) {
   event.target.value = '';
 }
 
-// ===================== 5. NAVIGATION & UI =====================
 function goScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-' + name);
