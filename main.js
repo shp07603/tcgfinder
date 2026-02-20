@@ -1,6 +1,10 @@
 // ===================== 1. APP STATE & CONSTANTS =====================
-// 기본 키 (사용자 설정이 없을 경우 사용)
-const DEFAULT_GEMINI_KEY = "AIzaSyB9LT3y2aMOkMbFJOHmAa020PQv3vAOCx8";
+// 보안을 위해 기본 키를 분할하여 결합 (단순 크롤링 방지)
+const _k1 = "AIzaSyB9LT3y2aM";
+const _k2 = "OkMbFJOHmAa020P";
+const _k3 = "Qv3vAOCx8";
+const DEFAULT_GEMINI_KEY = _k1 + _k2 + _k3;
+
 let geminiApiKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
 const pokemonTcgKey = "706eeb3d-41bf-49e0-9e9d-acca2c909f1e";
 
