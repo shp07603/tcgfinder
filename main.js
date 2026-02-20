@@ -106,47 +106,57 @@ function captureFrame() {
 
 // 1단계: Gemini Vision으로 기본 정보 식별
 async function callGeminiAI(base64Image) {
+  if (!base64Image || !base64Image.includes(',')) {
+    console.error("Invalid image data");
+    return null;
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const prompt = `Identify this trading card. Return STRICT JSON without Markdown. 
+  const prompt = `Identify this trading card. Return STRICT JSON without Markdown.
   Fields:
   - "name": Card Name (English only, e.g., "Charizard")
   - "name_ko": Card Name (Korean, if unknown use English)
   - "set": Set Name
   - "id": Card Number (e.g., "4/102")
-  - "category": "pokemon" or "sports" or "tcg"
-  `;
+  - "category": "pokemon" or "sports" or "tcg"`;
 
   try {
-    console.log("AI 인식 시작...");
+    const rawData = base64Image.split(',')[1];
+    console.log("AI 분석 요청 중...");
+
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Image.split(',')[1] } }] }],
-        generationConfig: { response_mime_type: "application/json", temperature: 0.1 }
+        contents: [{ 
+          parts: [
+            { text: prompt }, 
+            { inlineData: { mimeType: "image/jpeg", data: rawData } } 
+          ] 
+        }],
+        generationConfig: { 
+          responseMimeType: "application/json",
+          temperature: 0.1 
+        }
       })
     });
 
     const data = await response.json();
-    console.log("Gemini API 응답 원본:", data);
+    console.log("AI 응답:", data);
 
-    if (data.error) {
-      throw new Error(`Gemini API 오류: ${data.error.message} (${data.error.status})`);
-    }
-
-    if (!data.candidates || !data.candidates[0]) {
-      throw new Error("AI가 응답 후보를 생성하지 못했습니다. (Safety Filter 등에 의해 차단되었을 수 있음)");
-    }
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 결과가 없습니다.");
 
     let text = data.candidates[0].content.parts[0].text;
-    console.log("추출된 텍스트:", text);
     
-    // Markdown 제거 및 정제
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(text);
+    // JSON만 추출
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("데이터 파싱 실패");
+    
+    return JSON.parse(match[0]);
   } catch (e) {
-    console.error("AI 인식 치명적 오류:", e);
-    showToast('❌', `인식 오류: ${e.message}`);
+    console.error("AI 에러 상세:", e);
+    showToast('❌', `인식 실패: ${e.message}`);
     return null;
   }
 }
