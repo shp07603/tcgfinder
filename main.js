@@ -107,7 +107,6 @@ function captureFrame() {
 // 1단계: Gemini Vision으로 기본 정보 식별
 async function callGeminiAI(base64Image) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  // 프롬프트 강화: 영문 이름 필수, JSON 형식 강조
   const prompt = `Identify this trading card. Return STRICT JSON without Markdown. 
   Fields:
   - "name": Card Name (English only, e.g., "Charizard")
@@ -118,6 +117,7 @@ async function callGeminiAI(base64Image) {
   `;
 
   try {
+    console.log("AI 인식 시작...");
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,15 +127,26 @@ async function callGeminiAI(base64Image) {
       })
     });
 
-    if (!response.ok) throw new Error(`API Error: ${response.status}`);
     const data = await response.json();
+    console.log("Gemini API 응답 원본:", data);
+
+    if (data.error) {
+      throw new Error(`Gemini API 오류: ${data.error.message} (${data.error.status})`);
+    }
+
+    if (!data.candidates || !data.candidates[0]) {
+      throw new Error("AI가 응답 후보를 생성하지 못했습니다. (Safety Filter 등에 의해 차단되었을 수 있음)");
+    }
+
     let text = data.candidates[0].content.parts[0].text;
+    console.log("추출된 텍스트:", text);
     
     // Markdown 제거 및 정제
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(text);
   } catch (e) {
-    console.error("AI Error:", e);
+    console.error("AI 인식 치명적 오류:", e);
+    showToast('❌', `인식 오류: ${e.message}`);
     return null;
   }
 }
@@ -144,11 +155,19 @@ async function callGeminiAI(base64Image) {
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
   try {
-    // 포켓몬 TCG API 호출 (이름으로 검색)
+    console.log(`DB 검색 시작: ${cardName}`);
     const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${cardName}"&pageSize=1`, {
       headers: { 'X-Api-Key': '706eeb3d-41bf-49e0-9e9d-acca2c909f1e' } 
     });
+    
+    if (!res.ok) {
+      console.warn(`TCG API 응답 이상: ${res.status}`);
+      return null;
+    }
+
     const data = await res.json();
+    console.log("TCG API 응답 데이터:", data);
+
     if (data.data && data.data.length > 0) {
       const card = data.data[0];
       return {
