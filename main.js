@@ -91,13 +91,16 @@ function captureFrame() {
 
 async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return null;
-  // 최신 키를 매번 가져오도록 보장
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
-  const prompt = `Identify this TCG card. Respond ONLY with a JSON object.
+  
+  // 프롬프트 강화: 공식 DB 검색에 최적화된 이름 요청
+  const prompt = `Identify this Pokemon or Sports trading card. 
+  Respond ONLY with a JSON object. 
+  For "name", use the EXACT official English name as printed on the card (no extra descriptions).
   {
-    "name": "Full English Name for Database Search",
-    "name_ko": "한국어 카드 이름",
+    "name": "Official English Name",
+    "name_ko": "한국어 이름",
     "set": "Set Name",
     "category": "pokemon"
   }`;
@@ -121,44 +124,52 @@ async function callGeminiAI(base64Image) {
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-    if (!data.candidates || !data.candidates[0].content) throw new Error("분석 결과가 없습니다. 조명을 밝게 해주세요.");
+    if (!data.candidates || !data.candidates[0].content) throw new Error("이미지 분석 실패");
 
     let text = data.candidates[0].content.parts[0].text;
-    // JSON 정제 로직: Markdown이나 불필요한 텍스트 제거
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}') + 1;
-    if (start === -1 || end === 0) throw new Error("AI 응답 형식이 올바르지 않습니다.");
-    
     return JSON.parse(text.substring(start, end));
   } catch (e) {
     console.error("AI Error:", e);
-    const msg = e.message.includes("API key") ? "API 키가 올바르지 않습니다. [내 정보]에서 키를 확인해주세요." : e.message;
-    showToast('❌', msg);
+    showToast('❌', "인식 실패: 조명을 밝게 하고 다시 시도해 주세요.");
     return null;
   }
 }
 
 async function searchPokemonDB(cardName) {
   if (!cardName) return null;
-  // DB 검색 쿼리 최적화: 특수문자 제거 및 유연한 매칭
-  const cleanName = cardName.split('(')[0].trim();
-  const query = encodeURIComponent(cleanName);
-  try {
-    const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${query}"&pageSize=1`, {
-      headers: { 'X-Api-Key': pokemonTcgKey } 
-    });
-    const data = await res.json();
-    if (data.data && data.data.length > 0) {
-      const card = data.data[0];
-      return {
-        hp: card.hp || 0,
-        rarity: card.rarity || 'Common',
-        image: card.images.large || card.images.small,
-        attacks: card.attacks || [],
-        verified: true
-      };
-    }
-  } catch (e) { console.warn("DB Search failed", e); }
+  
+  // 1차 검색용 정제
+  const cleanName = cardName.split('(')[0].replace(/[^\w\s-]/gi, '').trim();
+  
+  const attemptSearch = async (q) => {
+    try {
+      const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(q)}"&pageSize=1`, {
+        headers: { 'X-Api-Key': pokemonTcgKey } 
+      });
+      const data = await res.json();
+      return (data.data && data.data.length > 0) ? data.data[0] : null;
+    } catch (e) { return null; }
+  };
+
+  // 단계별 검색 (정확한 이름 -> 첫 단어 검색)
+  let card = await attemptSearch(cleanName);
+  
+  if (!card && cleanName.includes(' ')) {
+    const firstWord = cleanName.split(' ')[0];
+    card = await attemptSearch(firstWord);
+  }
+
+  if (card) {
+    return {
+      hp: card.hp || 0,
+      rarity: card.rarity || 'Common',
+      image: card.images.large || card.images.small,
+      attacks: card.attacks || [],
+      verified: true
+    };
+  }
   return null;
 }
 
