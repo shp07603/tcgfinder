@@ -173,6 +173,21 @@
         </div>
       </div>
     </div>
+
+    <!-- AI Error (hidden by default) -->
+    <div class="ai-result-wrap" id="ai-error" style="display:none">
+      <div class="ai-result-hdr">
+        <div class="ai-tag" style="background:rgba(255,107,53,0.12); color:var(--pokemon);">⚠ 분석 실패</div>
+      </div>
+      <div class="ai-box" style="border-color:rgba(255,107,53,0.2);">
+        <div class="ai-box-body" style="flex-direction:column; align-items:center; text-align:center; padding:24px;">
+          <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+          <div style="font-size:16px; font-weight:800; margin-bottom:8px;" id="ai-error-title">카드를 인식할 수 없습니다</div>
+          <div style="font-size:13px; color:var(--text2); line-height:1.5; margin-bottom:20px;" id="ai-error-msg">조명이 너무 어둡거나 카드가 잘 보이지 않습니다. 밝은 곳에서 다시 시도해주세요.</div>
+          <button class="btn-sec" onclick="resetScan()" style="width:100%;">다시 시도하기</button>
+        </div>
+      </div>
+    </div>
     <div style="height:20px"></div>
   </div>
 

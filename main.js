@@ -123,14 +123,16 @@ function captureFrame() {
 }
 
 async function callGeminiAI(base64Image) {
-  if (!base64Image || !base64Image.includes(',')) return null;
+  if (!base64Image || !base64Image.includes(',')) return { success: false, error_type: 'INTERNAL', message: '이미지 데이터가 올바르지 않습니다.' };
+  
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
   
-  // ✅ 사용자 제안 반영: 구체적인 데이터 추출 프롬프트
   const prompt = `
     Analyze this trading card image. Respond ONLY with a JSON object.
     {
+      "success": true or false,
+      "error_reason": "Provide a clear reason in Korean if success is false (e.g. '이미지가 너무 어둡습니다', '카드가 흐릿합니다', 'TCG 카드가 아닙니다', '카드가 잘려 보입니다')",
       "name": "Exact card name",
       "cardNumber": "Card number (e.g. 025/165)",
       "hp": "HP value",
@@ -139,7 +141,7 @@ async function callGeminiAI(base64Image) {
       "name_ko": "Korean name (if known, otherwise null)",
       "category": "pokemon"
     }
-    If you cannot find a specific field, mark it as null.
+    If you cannot identify the card, set "success" to false and provide an "error_reason" in Korean.
   `;
 
   try {
@@ -155,12 +157,19 @@ async function callGeminiAI(base64Image) {
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
         ],
-        generationConfig: { 
-          temperature: 0.1
-          // 🟡 responseMimeType 제거 (사용자 제안 반영)
-        }
+        generationConfig: { temperature: 0.1 }
       })
     });
+
+    if (response.status === 403 || response.status === 401) {
+      return { success: false, error_type: 'API_KEY', message: 'API 키가 올바르지 않거나 만료되었습니다. 설정에서 확인해주세요.' };
+    }
+    if (response.status === 429) {
+      return { success: false, error_type: 'QUOTA', message: 'API 사용량이 초과되었습니다. 잠시 후 다시 시도해주세요.' };
+    }
+    if (!response.ok) {
+      return { success: false, error_type: 'NETWORK', message: `API 연결 오류 (${response.status})` };
+    }
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
@@ -169,70 +178,40 @@ async function callGeminiAI(base64Image) {
     let text = data.candidates[0].content.parts[0].text;
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}') + 1;
-    return JSON.parse(text.substring(start, end));
+    const result = JSON.parse(text.substring(start, end));
+    
+    if (result.success === false) {
+      return { success: false, error_type: 'RECOGNITION', message: result.error_reason || '카드를 인식할 수 없습니다.' };
+    }
+    return result;
   } catch (e) {
     console.error("Gemini API Error:", e);
-    showToast('❌', "인식 실패: 조명을 밝게 하고 다시 시도해주세요.");
-    return null;
+    return { success: false, error_type: 'UNKNOWN', message: '분석 중 오류가 발생했습니다. 조명을 밝게 하고 다시 시도해 보세요.' };
   }
-}
-
-async function searchPokemonDB(cardName) {
-  if (!cardName) return null;
-  const cleanName = cardName.split('(')[0].replace(/[^\w\s-]/gi, '').trim();
-  
-  const attemptSearch = async (q, strict = true) => {
-    const queryStr = strict ? `name:"${q}"` : `name:${q}*`;
-    try {
-      const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(queryStr)}&pageSize=1`, {
-        headers: { 'X-Api-Key': pokemonTcgKey } 
-      });
-      const data = await res.json();
-      return (data.data && data.data.length > 0) ? data.data[0] : null;
-    } catch (e) { return null; }
-  };
-
-  let card = await attemptSearch(cleanName, true);
-  if (!card) card = await attemptSearch(cleanName, false);
-  if (!card && cleanName.includes(' ')) card = await attemptSearch(cleanName.split(' ')[0], false);
-
-  if (card) {
-    return {
-      hp: card.hp || 0,
-      rarity: card.rarity || 'Common',
-      image: card.images.large || card.images.small,
-      attacks: card.attacks || [],
-      verified: true
-    };
-  }
-  return null;
-}
-
-async function triggerScan() {
-  if (scanning) return;
-  const flash = document.getElementById('camera-flash');
-  if (flash) {
-    flash.style.display = 'block';
-    setTimeout(() => flash.style.display = 'none', 100);
-  }
-  scanning = true;
-  const img = captureFrame();
-  if (!img) {
-    showToast('⚠️', '카메라 준비 중입니다. 1~2초 후 다시 눌러주세요.');
-    scanning = false;
-    return;
-  }
-  await processImage(img);
-  scanning = false;
 }
 
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
+  document.getElementById('ai-error').style.display = 'none';
   showToast('🔍', 'AI 분석 중...');
   
+  // 밝기 체크
+  const brightness = await calculateBrightness(base64Data);
+  if (brightness < 40) {
+    showErrorUI('조도가 너무 낮음', '주변이 너무 어둡습니다. 불을 켜거나 더 밝은 곳에서 촬영해주세요.');
+    return;
+  }
+
   const aiRes = await callGeminiAI(base64Data);
-  if (!aiRes || !aiRes.name) return;
+  
+  if (!aiRes || aiRes.success === false) {
+    const errorTitle = aiRes?.error_type === 'API_KEY' ? 'API 키 오류' : 
+                       aiRes?.error_type === 'QUOTA' ? '사용량 초과' : 
+                       aiRes?.error_type === 'RECOGNITION' ? '인식 실패' : '분석 실패';
+    showErrorUI(errorTitle, aiRes?.message || '카드를 분석할 수 없습니다.');
+    return;
+  }
 
   showToast('📡', '데이터베이스 대조 중...');
   let dbData = await searchPokemonDB(aiRes.name);
@@ -263,6 +242,48 @@ async function processImage(base64Data) {
   document.getElementById('ai-result').style.display = 'block';
   document.getElementById('ai-result').scrollIntoView({ behavior: 'smooth' });
   showToast('✨', '인식 완료!');
+}
+
+function showErrorUI(title, msg) {
+  document.getElementById('ai-error-title').textContent = title;
+  document.getElementById('ai-error-msg').textContent = msg;
+  document.getElementById('ai-error').style.display = 'block';
+  document.getElementById('ai-error').scrollIntoView({ behavior: 'smooth' });
+  showToast('❌', title);
+}
+
+function resetScan() {
+  document.getElementById('ai-result').style.display = 'none';
+  document.getElementById('ai-error').style.display = 'none';
+  currentAiResult = null;
+  capturedImageData = null;
+  if (cameraStream) {
+    // 이미 카메라가 켜져 있을 것이므로 따로 초기화는 필요 없음
+  } else {
+    initCamera();
+  }
+  showToast('📷', '준비되었습니다.');
+}
+
+async function calculateBrightness(base64) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let r, g, b, avg = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r = data[i]; g = data[i+1]; b = data[i+2];
+        avg += (r * 0.299 + g * 0.587 + b * 0.114);
+      }
+      resolve(avg / (data.length / 4));
+    };
+    img.src = base64;
+  });
 }
 
 function handleGallerySelect(event) {
