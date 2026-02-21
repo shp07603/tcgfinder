@@ -126,8 +126,8 @@ async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return { success: false, error_type: 'INTERNAL', message: '이미지 데이터가 올바르지 않습니다.' };
   
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
-  // v1beta -> v1 버전으로 변경하고 표준 모델명 사용 (404 해결 시도)
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+  // v1beta가 대부분의 무료 티어 키에서 가장 호환성이 높습니다.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
   
   const prompt = `
     Analyze this trading card image. Respond ONLY with a JSON object.
@@ -567,7 +567,7 @@ function saveProfile() {
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
   const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
   profiles[currentUser.email] = { name: newName, picture: newPic };
-  localStorage.setItem('userProfiles', JSON.setItem('userProfiles', JSON.stringify(profiles)));
+  localStorage.setItem('userProfiles', JSON.stringify(profiles));
   updateUserUI(); closeEditProfile(); showToast('✅', '프로필이 수정되었습니다.');
 }
 
