@@ -126,8 +126,8 @@ async function callGeminiAI(base64Image) {
   if (!base64Image || !base64Image.includes(',')) return { success: false, error_type: 'INTERNAL', message: '이미지 데이터가 올바르지 않습니다.' };
   
   const currentKey = localStorage.getItem('user_gemini_key') || DEFAULT_GEMINI_KEY;
-  // 모델명을 gemini-1.5-flash-latest로 업데이트하여 404 방지 시도
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${currentKey}`;
+  // v1beta -> v1 버전으로 변경하고 표준 모델명 사용 (404 해결 시도)
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
   
   const prompt = `
     Analyze this trading card image. Respond ONLY with a JSON object.
@@ -169,7 +169,7 @@ async function callGeminiAI(base64Image) {
       return { success: false, error_type: 'QUOTA', message: 'API 사용량이 초과되었습니다.' };
     }
     if (response.status === 404) {
-      return { success: false, error_type: 'NOT_FOUND', message: 'AI 모델 엔드포인트를 찾을 수 없습니다(404). 관리자에게 문의하세요.' };
+      return { success: false, error_type: 'NOT_FOUND', message: 'AI 모델 엔드포인트를 찾을 수 없습니다(404). API 설정을 확인해주세요.' };
     }
     if (!response.ok) {
       return { success: false, error_type: 'NETWORK', message: `Gemini API 오류 (${response.status})` };
