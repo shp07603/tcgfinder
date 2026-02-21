@@ -190,6 +190,55 @@ async function callGeminiAI(base64Image) {
   }
 }
 
+async function searchPokemonDB(cardName) {
+  if (!cardName) return null;
+  const cleanName = cardName.split('(')[0].replace(/[^\w\s-]/gi, '').trim();
+  
+  const attemptSearch = async (q, strict = true) => {
+    const queryStr = strict ? `name:"${q}"` : `name:${q}*`;
+    try {
+      const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(queryStr)}&pageSize=1`, {
+        headers: { 'X-Api-Key': pokemonTcgKey } 
+      });
+      const data = await res.json();
+      return (data.data && data.data.length > 0) ? data.data[0] : null;
+    } catch (e) { return null; }
+  };
+
+  let card = await attemptSearch(cleanName, true);
+  if (!card) card = await attemptSearch(cleanName, false);
+  if (!card && cleanName.includes(' ')) card = await attemptSearch(cleanName.split(' ')[0], false);
+
+  if (card) {
+    return {
+      hp: card.hp || 0,
+      rarity: card.rarity || 'Common',
+      image: card.images.large || card.images.small,
+      attacks: card.attacks || [],
+      verified: true
+    };
+  }
+  return null;
+}
+
+async function triggerScan() {
+  if (scanning) return;
+  const flash = document.getElementById('camera-flash');
+  if (flash) {
+    flash.style.display = 'block';
+    setTimeout(() => flash.style.display = 'none', 100);
+  }
+  scanning = true;
+  const img = captureFrame();
+  if (!img) {
+    showToast('⚠️', '카메라 준비 중입니다. 1~2초 후 다시 눌러주세요.');
+    scanning = false;
+    return;
+  }
+  await processImage(img);
+  scanning = false;
+}
+
 async function processImage(base64Data) {
   capturedImageData = base64Data;
   document.getElementById('ai-result').style.display = 'none';
@@ -509,7 +558,7 @@ function saveProfile() {
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
   const profiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
   profiles[currentUser.email] = { name: newName, picture: newPic };
-  localStorage.setItem('userProfiles', JSON.stringify(profiles));
+  localStorage.setItem('userProfiles', JSON.setItem('userProfiles', JSON.stringify(profiles)));
   updateUserUI(); closeEditProfile(); showToast('✅', '프로필이 수정되었습니다.');
 }
 
